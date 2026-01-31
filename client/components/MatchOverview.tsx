@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GameState, Player, ViewTab } from '../types';
-import { Maximize2, Minimize2, Play, Timer, Radio, Camera, Monitor, StopCircle, Loader2, RotateCcw, Mic, MicOff, Waves, Brain } from 'lucide-react';
+import { Maximize2, Minimize2, Play, Timer, Radio, Camera, Monitor, StopCircle, Loader2, RotateCcw, Mic, MicOff, Waves, Brain, Zap } from 'lucide-react';
 import { streamManager, createStreamSession, endStreamSession, AnalysisEvent, getStreamCapabilities, startFrameAnalysis } from '../services/stream';
 import { MatchInfo } from '../services/match';
 import { useLiveCommentary } from '../hooks/useLiveCommentary';
 import { DeepResearch } from './DeepResearch';
+import { captureAndAnalyzeFrame } from '../services/frameCapture';
 
 interface MatchOverviewProps {
   gameState: GameState;
@@ -290,8 +291,11 @@ export const MatchOverview: React.FC<MatchOverviewProps> = ({
   const [streamError, setStreamError] = useState<string | null>(null);
   const [streamAvailable, setStreamAvailable] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [captureSuccess, setCaptureSuccess] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const stopAnalysisRef = useRef<(() => void) | null>(null);
+  const captureTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Live Commentary hook
   const {
@@ -423,6 +427,53 @@ export const MatchOverview: React.FC<MatchOverviewProps> = ({
       videoRef.current.srcObject = null;
     }
   }, [liveStream, onLiveStreamChange]);
+
+  const handleCaptureFrame = useCallback(async () => {
+    if (!videoRef.current || isCapturing) return;
+
+    setIsCapturing(true);
+    setCaptureSuccess(false);
+
+    try {
+      // Capture and analyze the current frame
+      const result = await captureAndAnalyzeFrame(videoRef.current);
+
+      if (result.success && result.analysis) {
+        // Emit captured events
+        result.analysis.forEach(event => {
+          onLiveAnalysis(event);
+        });
+
+        // Show success indicator
+        setCaptureSuccess(true);
+
+        // Clear success indicator after 2 seconds
+        if (captureTimeoutRef.current) {
+          clearTimeout(captureTimeoutRef.current);
+        }
+        captureTimeoutRef.current = setTimeout(() => {
+          setCaptureSuccess(false);
+        }, 2000);
+
+        console.log(`Captured and analyzed frame at ${result.timestamp}`);
+      } else {
+        console.error('Frame capture failed:', result.error);
+      }
+    } catch (error) {
+      console.error('Error during frame capture:', error);
+    } finally {
+      setIsCapturing(false);
+    }
+  }, [isCapturing, onLiveAnalysis]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (captureTimeoutRef.current) {
+        clearTimeout(captureTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className={`flex flex-col h-full bg-black transition-all duration-500 ${isExpanded ? 'p-0' : ''}`}>
@@ -559,6 +610,35 @@ export const MatchOverview: React.FC<MatchOverviewProps> = ({
                   </div>
                   {/* Actions */}
                   <div className="absolute bottom-4 right-4 flex gap-2">
+                    {/* Frame Capture Button */}
+                    <button
+                      onClick={handleCaptureFrame}
+                      disabled={isCapturing || !liveStream}
+                      className={`flex items-center gap-2 px-4 py-3 rounded-2xl font-bold text-xs transition-all shadow-xl ${
+                        captureSuccess
+                          ? 'bg-green-500 text-white'
+                          : 'bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed'
+                      }`}
+                      title="Capture current frame and analyze"
+                    >
+                      {isCapturing ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          <span className="hidden sm:inline">Capturing...</span>
+                        </>
+                      ) : captureSuccess ? (
+                        <>
+                          <Zap size={16} />
+                          <span className="hidden sm:inline">Captured!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Camera size={16} />
+                          <span className="hidden sm:inline">Capture</span>
+                        </>
+                      )}
+                    </button>
+
                     {/* Live Commentary Toggle */}
                     <button
                       onClick={async () => {
