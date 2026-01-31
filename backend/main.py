@@ -13,6 +13,7 @@ import uvicorn
 from config import settings
 from api.routes import video_router, game_state_router, websocket_router, stream_router, video_generation_router
 from api.routes.match import router as match_router
+from api.routes.deep_research import router as deep_research_router
 from core.vision_agent import vision_agent, VISION_AGENTS_AVAILABLE
 from core.football_agent import football_agent, VISION_AGENTS_AVAILABLE as STREAM_AVAILABLE
 from utils.logger import logger
@@ -105,6 +106,7 @@ app.include_router(websocket_router, tags=["WebSocket"])
 app.include_router(stream_router, tags=["WebRTC Streaming"])
 app.include_router(video_generation_router, tags=["Video Generation"])
 app.include_router(match_router, prefix="/match", tags=["Match Management"])
+app.include_router(deep_research_router, tags=["Deep Research"])
 
 
 @app.get("/")
