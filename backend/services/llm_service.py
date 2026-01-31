@@ -28,9 +28,9 @@ class LLMService:
 
         try:
             genai.configure(api_key=settings.GEMINI_API_KEY)
-            self._model = genai.GenerativeModel("gemini-3-pro-preview")
+            self._model = genai.GenerativeModel("gemini-2-flash")
             self._initialized = True
-            logger.info("Gemini Vision API initialized with gemini-3-pro-preview")
+            logger.info("Gemini Vision API initialized with gemini-2-flash (fast frame analysis)")
             return True
         except Exception as e:
             logger.error(f"Failed to initialize Gemini: {e}")
@@ -51,19 +51,16 @@ class LLMService:
             if not self.initialize():
                 return self._generate_fallback_analysis(timestamp)
 
-        prompt = """Analyze this football game frame. Identify:
-1. The current formation (offensive/defensive)
-2. Player positions and movements
-3. Ball location if visible
-4. Type of play (pass, run, kick, etc.)
-5. Any significant events (completion, tackle, sack, etc.)
+        prompt = """Analyze this NFL game frame and detect events.
 
-Respond in this exact format for each event detected:
-EVENT: <event type>
-DETAILS: <detailed description including player names if visible>
+Format:
+EVENT: <type>
+DETAILS: <brief description>
 CONFIDENCE: <0.0-1.0>
 
-If multiple events, separate with ---"""
+Separate multiple events with ---
+
+Detect: formations, plays, significant events (tackles, completions, sacks), ball location."""
 
         try:
             response = self._model.generate_content([prompt, image])
