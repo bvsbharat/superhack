@@ -7,6 +7,8 @@
 ehthumbs.db
 Thumbs.db
 
+context/
+
 # IDEs and Editors
 .idea/
 .vscode/
