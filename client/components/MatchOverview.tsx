@@ -490,33 +490,41 @@ export const MatchOverview: React.FC<MatchOverviewProps> = ({
     <div className={`flex flex-col h-full bg-black transition-all duration-500 ${isExpanded ? 'p-0' : ''}`}>
       {!isExpanded && (
         <>
-          <div className="flex gap-1 items-center mb-6 bg-[#111] p-1 rounded-full w-fit">
-            <button 
+          <div className="flex gap-1 items-center mb-3 bg-[#111] p-1 rounded-full w-fit">
+            <button
               onClick={() => onViewChange('analytics')}
               className={`${activeView === 'analytics' ? 'bg-[#1e1e1e] text-white' : 'text-[#4d4d4d]'} px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all`}
             >
               Live Dynamics
             </button>
-            <button 
+            <button
               onClick={() => onViewChange('feed')}
               className={`${activeView === 'feed' ? 'bg-[#1e1e1e] text-white' : 'text-[#4d4d4d]'} px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider hover:text-white transition-all`}
             >
               Tactics
             </button>
-            <button 
+            <button
               onClick={() => onViewChange('deep-research')}
               className={`${activeView === 'deep-research' ? 'bg-[#1e1e1e] text-white' : 'text-[#4d4d4d]'} px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider hover:text-white transition-all flex items-center gap-1.5`}
             >
               <Brain size={12} className={activeView === 'deep-research' ? 'text-blue-400' : ''} />
               Deep Research
             </button>
-            <button 
+            <button
               onClick={() => onViewChange('highlights')}
               className={`${activeView === 'highlights' ? 'bg-[#1e1e1e] text-white' : 'text-[#4d4d4d]'} px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider hover:text-white transition-all`}
             >
               Media
             </button>
           </div>
+
+          {/* Simulation Timer */}
+          {isSimulating && (
+            <div className="mb-4 flex items-center gap-2 bg-[#ffe566]/10 border border-[#ffe566]/30 px-3 py-2 rounded-lg w-fit">
+              <Timer size={12} className="text-[#ffe566] animate-pulse" />
+              <span className="text-[8px] font-black text-[#ffe566] uppercase tracking-wider">Simulation: {timerStr}</span>
+            </div>
+          )}
 
           {activeView !== 'deep-research' && (
             <div className="flex items-center justify-between mb-4 pr-1">
@@ -553,13 +561,6 @@ export const MatchOverview: React.FC<MatchOverviewProps> = ({
       )}
 
       <div className={`relative flex-1 bg-[#0d0d0d] rounded-[48px] border border-white/5 p-4 flex flex-col overflow-hidden shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]`}>
-        {/* Simulation Banner Overlay */}
-        {isSimulating && (
-          <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 bg-[#ffe566] text-black px-6 py-2 rounded-full font-black text-xs uppercase italic tracking-tighter shadow-2xl flex items-center gap-3 border border-black/10">
-             <Timer size={14} className="animate-pulse" />
-             FULL MATCH SIMULATION: {timerStr}
-          </div>
-        )}
 
         {isExpanded && (
            <div className="flex justify-between items-center mb-8 px-4">
@@ -672,16 +673,16 @@ export const MatchOverview: React.FC<MatchOverviewProps> = ({
                       ) : isCommentaryActive ? (
                         <>
                           {isSpeaking ? (
-                            <Waves size={16} className="animate-pulse" />
+                            <Waves size={12} className="animate-pulse" />
                           ) : (
-                            <MicOff size={16} />
+                            <MicOff size={12} />
                           )}
-                          <span className="hidden sm:inline">Stop AI</span>
+                          <span className="hidden sm:inline text-[10px]">Stop AI</span>
                         </>
                       ) : (
                         <>
-                          <Mic size={16} />
-                          <span className="hidden sm:inline">AI Commentary</span>
+                          <Mic size={12} />
+                          <span className="hidden sm:inline text-[10px]">AI Commentary</span>
                         </>
                       )}
                     </button>

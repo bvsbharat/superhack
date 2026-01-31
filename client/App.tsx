@@ -61,6 +61,7 @@ const App: React.FC = () => {
   const [isLiveExpanded, setIsLiveExpanded] = useState(false);
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<ViewTab>('analytics');
+  const [rightPanelTab, setRightPanelTab] = useState<ViewTab>('analytics');
   const [liveAnalysis, setLiveAnalysis] = useState<AnalysisEvent[]>([]);
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
   const [highlights, setHighlights] = useState<HighlightCapture[]>([]);
@@ -649,8 +650,8 @@ const App: React.FC = () => {
             onUpdateHighlight={handleUpdateHighlight}
             flashAnalytics={flashAnalytics}
             deepAnalytics={deepAnalytics}
-            activeView={activeTab}
-            onViewChange={setActiveTab}
+            activeView={rightPanelTab}
+            onViewChange={setRightPanelTab}
             isExpanded={isLiveExpanded}
             onToggleExpand={() => setIsLiveExpanded(!isLiveExpanded)}
           />

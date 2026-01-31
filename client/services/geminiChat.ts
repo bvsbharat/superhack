@@ -46,8 +46,8 @@ export const chatWithAnalyst = async (
     
     // Using a chat structure if supported, otherwise appending.
     // The previous code used 'gemini-3-flash-preview', let's stick to a robust text model.
-    // 'gemini-2.0-flash-exp' or similar might be available, but let's use 'gemini-1.5-flash' or 'gemini-1.5-pro' if standard.
-    // Given the previous file used 'gemini-3-flash-preview', I'll stick to that or 'gemini-2.0-flash'.
+    // 'gemini-3-flash-preview-exp' or similar might be available, but let's use 'gemini-1.5-flash' or 'gemini-1.5-pro' if standard.
+    // Given the previous file used 'gemini-3-flash-preview', I'll stick to that or 'gemini-3-flash-preview'.
     
     const contents = [
       { role: 'user', parts: [{ text: `System Context: ${systemPrompt}` }] },

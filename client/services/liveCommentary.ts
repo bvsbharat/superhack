@@ -1,7 +1,7 @@
 /**
  * Live Audio Commentary Service
  *
- * Uses Gemini Live API with native audio output (gemini-2.5-flash-native-audio-preview)
+ * Uses Gemini Live API with native audio output (gemini-3-flash-preview-native-audio-preview)
  * to provide real-time sports commentary based on screen capture.
  */
 
@@ -204,7 +204,7 @@ class LiveCommentaryService {
 
     // Use native audio model with thinking disabled for pure audio output
     this.session = await this.ai.live.connect({
-      model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+      model: 'gemini-3-flash-preview-native-audio-preview-12-2025',
       config: {
         responseModalities: [Modality.AUDIO],
         systemInstruction: systemInstruction,

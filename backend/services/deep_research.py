@@ -58,7 +58,7 @@ class DeepResearchService:
 
         try:
             genai.configure(api_key=settings.GEMINI_API_KEY)
-            self.model = genai.GenerativeModel("gemini-3-flash-preview")
+            self.model = genai.GenerativeModel("gemini-3-pro-preview")
             self._initialized = True
             logger.info("Deep research service initialized")
             return True

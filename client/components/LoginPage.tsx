@@ -13,33 +13,7 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [currentSlide, setCurrentSlide] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [imagesLoaded, setImagesLoaded] = useState<boolean[]>([false, false]);
-
-  // Auto-slide every 5 seconds
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide(prev => (prev + 1) % BACKDROP_IMAGES.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const handlePrevSlide = () => {
-    setCurrentSlide(prev => (prev - 1 + BACKDROP_IMAGES.length) % BACKDROP_IMAGES.length);
-  };
-
-  const handleNextSlide = () => {
-    setCurrentSlide(prev => (prev + 1) % BACKDROP_IMAGES.length);
-  };
-
-  const handleImageLoad = (index: number) => {
-    setImagesLoaded(prev => {
-      const newState = [...prev];
-      newState[index] = true;
-      return newState;
-    });
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,60 +24,36 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="relative h-screen w-full flex items-center justify-center overflow-hidden bg-black">
-      {/* Background Image Slider */}
+    <div className="relative h-screen w-full overflow-hidden bg-black">
+      {/* Background Image - Static First Image */}
       <div className="absolute inset-0">
-        {BACKDROP_IMAGES.map((img, index) => (
-          <div
-            key={index}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              index === currentSlide ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <img
-              src={img}
-              className="w-full h-full object-cover scale-105"
-              alt={`Super Bowl backdrop ${index + 1}`}
-              onLoad={() => handleImageLoad(index)}
-            />
-          </div>
-        ))}
+        <img
+          src={BACKDROP_IMAGES[0]}
+          className="w-full h-full object-cover scale-105"
+          alt="Super Bowl backdrop"
+        />
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/60 to-black/80"></div>
         <div className="absolute inset-0 bg-black/30"></div>
       </div>
 
-      {/* Slider Navigation */}
-      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4">
-        <button
-          onClick={handlePrevSlide}
-          className="p-2 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-sm transition-all"
-        >
-          <ChevronLeft size={16} className="text-white/70" />
-        </button>
-        <div className="flex gap-2">
-          {BACKDROP_IMAGES.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentSlide(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                index === currentSlide
-                  ? 'bg-amber-400 w-6'
-                  : 'bg-white/30 hover:bg-white/50'
-              }`}
-            />
-          ))}
+      {/* Left Side - Super Analytics Branding */}
+      <div className="absolute left-16 top-1/2 -translate-y-1/2 z-20">
+        <div className="flex flex-col items-start gap-8">
+          <div>
+            <h1 className="text-5xl font-black text-white mb-4 tracking-tight">Super Analytics</h1>
+            <p className="text-lg text-white/70 font-semibold">Powered by</p>
+          </div>
+          <img
+            src="https://logos-world.net/wp-content/uploads/2025/02/Google-Gemini-Logo.png"
+            alt="Google Gemini"
+            className="w-48 h-auto"
+          />
         </div>
-        <button
-          onClick={handleNextSlide}
-          className="p-2 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-sm transition-all"
-        >
-          <ChevronRight size={16} className="text-white/70" />
-        </button>
       </div>
 
-      {/* Glassmorphic Card */}
-      <div className="relative z-10 w-full max-w-md px-4">
+      {/* Glassmorphic Card - Right Extreme */}
+      <div className="absolute right-8 top-1/2 -translate-y-1/2 z-10 w-full max-w-md px-4">
         <div className="bg-white/10 backdrop-blur-2xl backdrop-saturate-150 rounded-[40px] border border-white/30 p-10 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)]">
           <div className="flex flex-col items-center mb-10">
             <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-amber-500/20">

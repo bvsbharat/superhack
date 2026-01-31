@@ -159,9 +159,9 @@ Separate multiple events with ---"""
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=settings.GEMINI_API_KEY)
-                self._gemini_model = genai.GenerativeModel("gemini-3-flash-preview")
+                self._gemini_model = genai.GenerativeModel("gemini-3-pro-preview")
                 self._initialized = True
-                logger.info("Vision Agent initialized with gemini-3-flash-preview")
+                logger.info("Vision Agent initialized with gemini-3-pro-preview")
                 return True
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini API: {e}")
