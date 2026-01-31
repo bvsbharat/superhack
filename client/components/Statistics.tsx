@@ -11,7 +11,7 @@ import { NFL_TEAMS, getTeam, findTeam } from '../config/nflTeams';
 import { generateSportImage } from '../services/gemini';
 import { FastAnalytics, DeepAnalytics } from '../services/analyticsTypes';
 import { LiveCommentaryPanel } from './LiveCommentaryPanel';
-import TeamSelector, { TeamSelectionConfig } from './TeamSelector';
+// TeamSelector moved to Sidebar
 
 // Using NFL_TEAMS from config/nflTeams.ts for dynamic team colors
 
@@ -33,10 +33,6 @@ interface StatisticsProps {
   onViewChange: (view: ViewTab) => void;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
-  teamSelection?: TeamSelectionConfig;
-  onTeamSelectionChange?: (config: TeamSelectionConfig) => void;
-  isTeamSelectorOpen?: boolean;
-  onToggleTeamSelector?: () => void;
 }
 
 // Comprehensive football analytics metrics
@@ -101,13 +97,13 @@ export const Statistics: React.FC<StatisticsProps> = ({
   liveAnalysis = [], 
   liveStream, 
   onCaptureHighlight, 
-  onUpdateHighlight, 
-  flashAnalytics, 
-  deepAnalytics, 
-  activeView, 
-  onViewChange, 
-  isExpanded, 
-  onToggleExpand 
+  onUpdateHighlight,
+  flashAnalytics,
+  deepAnalytics,
+  activeView,
+  onViewChange,
+  isExpanded,
+  onToggleExpand
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [highlightCaptures, setHighlightCaptures] = useState<HighlightCapture[]>([]);
@@ -747,7 +743,7 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
           <div className="flex bg-gray-100 rounded-full p-1 gap-1">
             <button
               onClick={() => onViewChange('analytics')}
-              className={`px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all ${
+              className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-wider transition-all ${
                 activeView === 'analytics'
                   ? 'bg-black text-white shadow-lg'
                   : 'text-gray-500 hover:text-black hover:bg-gray-200'
@@ -758,18 +754,18 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
             </button>
             <button
               onClick={() => onViewChange('feed')}
-              className={`px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all ${
+              className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-wider transition-all flex flex-col items-center ${
                 activeView === 'feed'
                   ? 'bg-green-500 text-white shadow-lg'
                   : 'text-gray-500 hover:text-black hover:bg-gray-200'
               }`}
             >
-              <Video size={14} className="inline mr-1.5" />
-              Live Feed
+              <Video size={14} className="mb-0.5" />
+              <span>LiveFeed</span>
             </button>
             <button
               onClick={() => onViewChange('highlights')}
-              className={`px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all ${
+              className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-wider transition-all ${
                 activeView === 'highlights'
                   ? 'bg-[#ffe566] text-black shadow-lg'
                   : 'text-gray-500 hover:text-black hover:bg-gray-200'
@@ -778,68 +774,66 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
               <Camera size={14} className="inline mr-1.5" />
               Highlights
             </button>
+            <button
+              onClick={() => onViewChange('deep-research')}
+              className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-wider transition-all ${
+                activeView === 'deep-research'
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'text-gray-500 hover:text-black hover:bg-gray-200'
+              }`}
+            >
+              <Brain size={12} className="inline mr-1" />
+              Deep Analysis
+            </button>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-4 gap-4">
-        <div className="flex-1">
-          <h2 className="text-2xl font-black uppercase tracking-tighter">
-            {activeView === 'feed' ? 'Live Feed' : activeView === 'highlights' ? 'Key Moments' : 'Grid Analytics'}
-          </h2>
-          <p className="text-gray-400 text-[9px] font-bold uppercase tracking-widest mt-0.5">
-            {activeView === 'feed' ? 'Real-Time Video Stream' : activeView === 'highlights' ? 'AI-Captured Highlights' : 'Super Bowl Performance Engine'}
-          </p>
-        </div>
-
-        {/* Team Selection Component */}
-        {teamSelection && onTeamSelectionChange && (
-          <div className="shrink-0" style={{ maxWidth: '280px' }}>
-            <TeamSelector
-              currentSelection={teamSelection}
-              onTeamSelect={onTeamSelectionChange}
-              isOpen={isTeamSelectorOpen || false}
-              onClose={onToggleTeamSelector}
-            />
+      {activeView !== 'deep-research' && activeView !== 'feed' && (
+        <div className="flex justify-between items-center mb-4 gap-4">
+          <div className="flex-1">
+            <h2 className="text-2xl font-black uppercase tracking-tighter">
+              {activeView === 'highlights' ? 'Key Moments' : 'Grid Analytics'}
+            </h2>
+            <p className="text-gray-400 text-[9px] font-bold uppercase tracking-widest mt-0.5">
+              {activeView === 'highlights' ? 'AI-Captured Highlights' : 'Super Bowl Performance Engine'}
+            </p>
           </div>
-        )}
 
-        {!isLiveMode && (
-          <button className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-all active:scale-95">
-            <Activity size={18} />
-          </button>
-        )}
-      </div>
+          {/* Team Selection moved to Sidebar */}
+        </div>
+      )}
 
       {/* Live Feed View - Full Event Log (NOT video) */}
       {activeView === 'feed' && isLiveMode ? (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Header with stats summary */}
-          <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-4 mb-4 text-white">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-wider text-green-400">Live Event Feed</span>
+          <div className="flex items-center justify-between gap-3 mb-3 bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-3 text-white">
+            <div className="flex items-center gap-2 flex-1">
+              <div className="flex flex-col">
+                <h3 className="text-lg font-black uppercase tracking-tight">Live Feed</h3>
+                <p className="text-[7px] font-bold text-gray-400 uppercase tracking-wider">Real-Time Video Stream</p>
               </div>
-              <span className="text-[10px] font-bold text-gray-400">{liveAnalysis.length} Events Captured</span>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             </div>
-            <div className="grid grid-cols-4 gap-3 text-center">
-              <div>
-                <p className="text-[8px] font-bold text-gray-400 uppercase">EPA</p>
-                <p className={`text-xl font-black ${metrics.epa >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <span className="text-[9px] font-bold text-gray-400">{liveAnalysis.length} Events</span>
+            <div className="flex items-center gap-3 ml-2 pl-3 border-l border-gray-700">
+              <div className="flex flex-col items-center">
+                <p className="text-[7px] font-bold text-gray-400 uppercase">EPA</p>
+                <p className={`text-sm font-black ${metrics.epa >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {metrics.epa >= 0 ? '+' : ''}{metrics.epa}
                 </p>
               </div>
-              <div>
-                <p className="text-[8px] font-bold text-gray-400 uppercase">Turnover +/-</p>
-                <p className={`text-xl font-black ${metrics.turnoverDifferential >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <div className="flex flex-col items-center">
+                <p className="text-[7px] font-bold text-gray-400 uppercase">TO</p>
+                <p className={`text-sm font-black ${metrics.turnoverDifferential >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {metrics.turnoverDifferential >= 0 ? '+' : ''}{metrics.turnoverDifferential}
                 </p>
               </div>
-              <div>
-                <p className="text-[8px] font-bold text-gray-400 uppercase">Pass/Run</p>
-                <p className="text-xl font-black text-white">{metrics.playTypes.pass}/{metrics.playTypes.run}</p>
+              <div className="flex flex-col items-center">
+                <p className="text-[7px] font-bold text-gray-400 uppercase">P/R</p>
+                <p className="text-sm font-black text-white">{metrics.playTypes.pass}/{metrics.playTypes.run}</p>
               </div>
             </div>
           </div>
@@ -1002,6 +996,139 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
               </p>
             </div>
           )}
+        </div>
+      ) : activeView === 'deep-research' ? (
+        /* Deep Analysis View - Strategic Analysis & Predictions */
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <SimpleBar style={{ height: '100%' }}>
+            <div className="flex flex-col pr-2">
+              {/* Deep LLM Strategic Insights */}
+              {deepAnalytics ? (
+                <div className="bg-gradient-to-r from-blue-900 to-cyan-900 rounded-[24px] p-4 mb-4 text-white">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Brain size={14} className="text-cyan-300" />
+                    <h3 className="text-[10px] font-black uppercase tracking-wider text-cyan-300">
+                      Deep Strategic Analysis
+                      <span className="ml-2 text-[8px] bg-cyan-500/30 px-2 py-0.5 rounded">GEMINI PRO</span>
+                    </h3>
+                  </div>
+                  <p className="text-sm leading-relaxed mb-3">{deepAnalytics.strategicInsight}</p>
+                  <p className="text-xs text-white/70 italic">{deepAnalytics.gameNarrative}</p>
+
+                  {/* Key Player Impact */}
+                  {deepAnalytics.keyPlayerImpact && deepAnalytics.keyPlayerImpact.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[8px] text-cyan-300 uppercase font-bold">Key Player Impact</p>
+                      {deepAnalytics.keyPlayerImpact.slice(0, 3).map((player, idx) => (
+                        <div key={idx} className="bg-white/10 rounded-xl p-2 flex items-center justify-between">
+                          <div>
+                            <p className="text-[10px] font-bold">{player.playerName}</p>
+                            <p className="text-[8px] text-white/60">{player.impact}</p>
+                          </div>
+                          <div className={`text-sm font-black ${player.rating >= 70 ? 'text-green-400' : player.rating >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
+                            {player.rating}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Predictive Modeling */}
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    <div className="bg-white/10 rounded-xl p-2 text-center">
+                      <p className="text-[8px] text-cyan-300 uppercase">Drive Success</p>
+                      <p className="text-lg font-black">{deepAnalytics.predictiveModeling.driveSuccessProbability}%</p>
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-2 text-center">
+                      <p className="text-[8px] text-cyan-300 uppercase">Scoring Prob</p>
+                      <p className="text-lg font-black">{deepAnalytics.predictiveModeling.scoringProbability}%</p>
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-2 text-center">
+                      <p className="text-[8px] text-cyan-300 uppercase">Turnover Risk</p>
+                      <p className="text-lg font-black text-red-400">{deepAnalytics.predictiveModeling.turnoverRisk}%</p>
+                    </div>
+                  </div>
+
+                  {/* Detailed Metrics */}
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="bg-white/5 rounded-lg p-2">
+                      <p className="text-[7px] text-cyan-300/70 uppercase">Offensive Efficiency</p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
+                          <div className="h-full bg-cyan-400" style={{ width: `${deepAnalytics.detailedMetrics.offensiveEfficiency}%` }} />
+                        </div>
+                        <span className="text-[9px] font-bold">{deepAnalytics.detailedMetrics.offensiveEfficiency}%</span>
+                      </div>
+                    </div>
+                    <div className="bg-white/5 rounded-lg p-2">
+                      <p className="text-[7px] text-cyan-300/70 uppercase">Defensive Pressure</p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
+                          <div className="h-full bg-red-400" style={{ width: `${deepAnalytics.detailedMetrics.defensivePressure}%` }} />
+                        </div>
+                        <span className="text-[9px] font-bold">{deepAnalytics.detailedMetrics.defensivePressure}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <Brain size={32} className="mx-auto mb-2 text-blue-400" />
+                    <p className="text-[10px] font-bold text-gray-500 uppercase">Generating Deep Analysis...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Flash Quick Analytics */}
+              {flashAnalytics && (
+                <div className="bg-gradient-to-r from-amber-900 to-orange-900 rounded-[24px] p-4 mb-4 text-white">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap size={14} className="text-amber-300" />
+                    <h3 className="text-[10px] font-black uppercase tracking-wider text-amber-300">
+                      Flash Analytics
+                      <span className="ml-2 text-[8px] bg-amber-500/30 px-2 py-0.5 rounded">GEMINI FLASH</span>
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[8px] text-amber-300 uppercase">Next Play Prediction</p>
+                      <p className="text-base font-black capitalize">{flashAnalytics.predictedNextPlay.type}</p>
+                      <p className="text-[9px] text-white/60">{flashAnalytics.predictedNextPlay.reasoning}</p>
+                      <div className="mt-1 flex items-center gap-1">
+                        <div className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+                          <div className="h-full bg-amber-400" style={{ width: `${flashAnalytics.predictedNextPlay.confidence}%` }} />
+                        </div>
+                        <span className="text-[8px] text-amber-300">{flashAnalytics.predictedNextPlay.confidence}%</span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[8px] text-amber-300 uppercase">Momentum</p>
+                      <p className={`text-lg font-black ${flashAnalytics.momentumShift > 0 ? 'text-green-400' : flashAnalytics.momentumShift < 0 ? 'text-red-400' : 'text-white'}`}>
+                        {flashAnalytics.momentumShift > 0 ? '+' : ''}{flashAnalytics.momentumShift}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-3">
+                    <div className="bg-white/10 rounded-xl p-2 text-center">
+                      <p className="text-[7px] text-amber-300/70 uppercase">EPA Trend</p>
+                      <p className={`text-sm font-black capitalize ${flashAnalytics.epaTrend === 'up' ? 'text-green-400' : flashAnalytics.epaTrend === 'down' ? 'text-red-400' : 'text-white'}`}>
+                        {flashAnalytics.epaTrend === 'up' ? '↑' : flashAnalytics.epaTrend === 'down' ? '↓' : '→'} {flashAnalytics.epaTrend}
+                      </p>
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-2 text-center">
+                      <p className="text-[7px] text-amber-300/70 uppercase">Blitz %</p>
+                      <p className="text-sm font-black">{flashAnalytics.blitzProbability}%</p>
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-2 text-center">
+                      <p className="text-[7px] text-amber-300/70 uppercase">Formation</p>
+                      <p className="text-[9px] font-bold truncate">{flashAnalytics.formationTendency}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </SimpleBar>
         </div>
       ) : (
         /* Analytics View */
@@ -1166,125 +1293,6 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
                   </div>
                 </div>
               </div>
-
-              {/* Deep LLM Strategic Insights */}
-              {deepAnalytics && (
-                <div className="bg-gradient-to-r from-blue-900 to-cyan-900 rounded-[24px] p-4 mb-4 text-white">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Brain size={14} className="text-cyan-300" />
-                    <h3 className="text-[10px] font-black uppercase tracking-wider text-cyan-300">
-                      Deep Strategic Analysis
-                      <span className="ml-2 text-[8px] bg-cyan-500/30 px-2 py-0.5 rounded">GEMINI PRO</span>
-                    </h3>
-                  </div>
-                  <p className="text-sm leading-relaxed mb-3">{deepAnalytics.strategicInsight}</p>
-                  <p className="text-xs text-white/70 italic">{deepAnalytics.gameNarrative}</p>
-
-                  {/* Key Player Impact */}
-                  {deepAnalytics.keyPlayerImpact && deepAnalytics.keyPlayerImpact.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      <p className="text-[8px] text-cyan-300 uppercase font-bold">Key Player Impact</p>
-                      {deepAnalytics.keyPlayerImpact.slice(0, 3).map((player, idx) => (
-                        <div key={idx} className="bg-white/10 rounded-xl p-2 flex items-center justify-between">
-                          <div>
-                            <p className="text-[10px] font-bold">{player.playerName}</p>
-                            <p className="text-[8px] text-white/60">{player.impact}</p>
-                          </div>
-                          <div className={`text-sm font-black ${player.rating >= 70 ? 'text-green-400' : player.rating >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
-                            {player.rating}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Predictive Modeling */}
-                  <div className="grid grid-cols-3 gap-2 mt-4">
-                    <div className="bg-white/10 rounded-xl p-2 text-center">
-                      <p className="text-[8px] text-cyan-300 uppercase">Drive Success</p>
-                      <p className="text-lg font-black">{deepAnalytics.predictiveModeling.driveSuccessProbability}%</p>
-                    </div>
-                    <div className="bg-white/10 rounded-xl p-2 text-center">
-                      <p className="text-[8px] text-cyan-300 uppercase">Scoring Prob</p>
-                      <p className="text-lg font-black">{deepAnalytics.predictiveModeling.scoringProbability}%</p>
-                    </div>
-                    <div className="bg-white/10 rounded-xl p-2 text-center">
-                      <p className="text-[8px] text-cyan-300 uppercase">Turnover Risk</p>
-                      <p className="text-lg font-black text-red-400">{deepAnalytics.predictiveModeling.turnoverRisk}%</p>
-                    </div>
-                  </div>
-
-                  {/* Detailed Metrics */}
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    <div className="bg-white/5 rounded-lg p-2">
-                      <p className="text-[7px] text-cyan-300/70 uppercase">Offensive Efficiency</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
-                          <div className="h-full bg-cyan-400" style={{ width: `${deepAnalytics.detailedMetrics.offensiveEfficiency}%` }} />
-                        </div>
-                        <span className="text-[9px] font-bold">{deepAnalytics.detailedMetrics.offensiveEfficiency}%</span>
-                      </div>
-                    </div>
-                    <div className="bg-white/5 rounded-lg p-2">
-                      <p className="text-[7px] text-cyan-300/70 uppercase">Defensive Pressure</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
-                          <div className="h-full bg-red-400" style={{ width: `${deepAnalytics.detailedMetrics.defensivePressure}%` }} />
-                        </div>
-                        <span className="text-[9px] font-bold">{deepAnalytics.detailedMetrics.defensivePressure}%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Flash Quick Analytics */}
-              {flashAnalytics && (
-                <div className="bg-gradient-to-r from-amber-900 to-orange-900 rounded-[24px] p-4 mb-4 text-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap size={14} className="text-amber-300" />
-                    <h3 className="text-[10px] font-black uppercase tracking-wider text-amber-300">
-                      Flash Analytics
-                      <span className="ml-2 text-[8px] bg-amber-500/30 px-2 py-0.5 rounded">GEMINI FLASH</span>
-                    </h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-[8px] text-amber-300 uppercase">Next Play Prediction</p>
-                      <p className="text-base font-black capitalize">{flashAnalytics.predictedNextPlay.type}</p>
-                      <p className="text-[9px] text-white/60">{flashAnalytics.predictedNextPlay.reasoning}</p>
-                      <div className="mt-1 flex items-center gap-1">
-                        <div className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
-                          <div className="h-full bg-amber-400" style={{ width: `${flashAnalytics.predictedNextPlay.confidence}%` }} />
-                        </div>
-                        <span className="text-[8px] text-amber-300">{flashAnalytics.predictedNextPlay.confidence}%</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[8px] text-amber-300 uppercase">Momentum</p>
-                      <p className={`text-lg font-black ${flashAnalytics.momentumShift > 0 ? 'text-green-400' : flashAnalytics.momentumShift < 0 ? 'text-red-400' : 'text-white'}`}>
-                        {flashAnalytics.momentumShift > 0 ? '+' : ''}{flashAnalytics.momentumShift}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    <div className="bg-white/10 rounded-xl p-2 text-center">
-                      <p className="text-[7px] text-amber-300/70 uppercase">EPA Trend</p>
-                      <p className={`text-sm font-black capitalize ${flashAnalytics.epaTrend === 'up' ? 'text-green-400' : flashAnalytics.epaTrend === 'down' ? 'text-red-400' : 'text-white'}`}>
-                        {flashAnalytics.epaTrend === 'up' ? '↑' : flashAnalytics.epaTrend === 'down' ? '↓' : '→'} {flashAnalytics.epaTrend}
-                      </p>
-                    </div>
-                    <div className="bg-white/10 rounded-xl p-2 text-center">
-                      <p className="text-[7px] text-amber-300/70 uppercase">Blitz %</p>
-                      <p className="text-sm font-black">{flashAnalytics.blitzProbability}%</p>
-                    </div>
-                    <div className="bg-white/10 rounded-xl p-2 text-center">
-                      <p className="text-[7px] text-amber-300/70 uppercase">Formation</p>
-                      <p className="text-[9px] font-bold truncate">{flashAnalytics.formationTendency}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Live Audio Commentary Panel */}
               {liveStream && (

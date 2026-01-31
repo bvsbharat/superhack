@@ -257,9 +257,9 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
         {(!showHighlight || !currentHighlight || !isLiveMode) && (
           <div className="flex justify-between items-end mb-4">
              <div className="max-w-[70%]">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-start gap-1.5 mb-2">
                   <span
-                    className="px-2 py-0.5 rounded text-[8px] font-black"
+                    className="px-2 py-1 rounded text-[8px] font-black flex-shrink-0"
                     style={{
                       backgroundColor: getTeam(player.team).primaryColor,
                       color: getTeam(player.team).textColor,
@@ -267,7 +267,7 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
                   >
                     {player.team}
                   </span>
-                  <span className="text-[10px] font-black text-white/50 tracking-widest uppercase">{player.role}</span>
+                  <span className="text-[10px] font-black text-white/50 tracking-widest uppercase pt-0.5">{player.role}</span>
                 </div>
                 <h2 className="text-4xl font-black mb-2 tracking-tighter uppercase italic text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] leading-none">{player.name}</h2>
                 <div className="flex items-center gap-4 text-white/70 text-[9px] font-black uppercase tracking-widest bg-black/20 backdrop-blur-sm rounded-full px-3 py-1 w-fit">

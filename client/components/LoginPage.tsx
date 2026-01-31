@@ -4,7 +4,7 @@ import { Lock, Mail, ChevronRight, Loader2, Trophy, ChevronLeft } from 'lucide-r
 
 // Background images for the slider
 const BACKDROP_IMAGES = [
-  '/images/superbowl-logo.jpg',
+  '/images/superbowl-logo.png',
   '/images/superbowl-stadium.jpg',
 ];
 
@@ -122,6 +122,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   type="email" 
                   defaultValue="analyst@gridiron.lix"
                   required
+                  autoComplete="username"
                   className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-white/20 outline-none focus:border-white/30 focus:bg-white/10 transition-all font-medium"
                   placeholder="name@agency.com"
                 />
@@ -136,6 +137,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   type="password" 
                   defaultValue="••••••••"
                   required
+                  autoComplete="current-password"
                   className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-white/20 outline-none focus:border-white/30 focus:bg-white/10 transition-all"
                   placeholder="Enter your password"
                 />

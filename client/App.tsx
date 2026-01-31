@@ -468,7 +468,11 @@ const App: React.FC = () => {
 
   return (
     <div ref={mainRef} className="flex h-screen w-full bg-[#050505] text-white overflow-hidden p-6 gap-6 relative" style={{ opacity: 0 }}>
-      <Sidebar onToggleAI={() => setShowAI(!showAI)} />
+      <Sidebar
+        onToggleAI={() => setShowAI(!showAI)}
+        teamSelection={teamSelection}
+        onTeamSelectionChange={handleTeamSelectionChange}
+      />
 
       <main className="flex-1 flex gap-6 overflow-hidden" ref={mainRef}>
         {!isMediaExpanded && (
@@ -534,10 +538,6 @@ const App: React.FC = () => {
             onViewChange={setActiveTab}
             isExpanded={isLiveExpanded}
             onToggleExpand={() => setIsLiveExpanded(!isLiveExpanded)}
-            teamSelection={teamSelection}
-            onTeamSelectionChange={handleTeamSelectionChange}
-            isTeamSelectorOpen={isTeamSelectorOpen}
-            onToggleTeamSelector={() => setIsTeamSelectorOpen(!isTeamSelectorOpen)}
           />
         </div>
       </main>

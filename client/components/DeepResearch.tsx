@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Brain, Bot, User, Loader2, RefreshCw } from 'lucide-react';
+import { Send, Sparkles, Brain, Bot, User, Loader2, RefreshCw, Activity, TrendingUp, Clock } from 'lucide-react';
 import { GameState } from '../types';
 import { chatWithAnalyst, ChatMessage } from '../services/geminiChat';
 
@@ -54,49 +54,6 @@ export const DeepResearch: React.FC<DeepResearchProps> = ({ gameState }) => {
 
   return (
     <div className="flex flex-col h-full w-full bg-[#0a0a0a] rounded-[32px] overflow-hidden border border-white/5 relative">
-      {/* Header Section with Live Analytics */}
-      <div className="px-6 py-4 border-b border-white/5 bg-gradient-to-r from-blue-900/20 to-purple-900/20">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-black uppercase tracking-tighter text-white flex items-center gap-2">
-                <Brain className="text-blue-400" size={20} />
-                Deep Research
-              </h1>
-              <div className="h-4 w-[1px] bg-white/10 mx-1" />
-              <div className="flex items-center gap-2">
-                <span className="bg-blue-500/10 text-blue-400 text-[9px] font-bold px-1.5 py-0.5 rounded border border-blue-500/20 uppercase tracking-widest whitespace-nowrap">
-                  Gemini Pro
-                </span>
-                <span className="text-white/40 text-[9px] uppercase tracking-widest flex items-center gap-1 whitespace-nowrap">
-                  <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse"/>
-                  Live Context
-                </span>
-              </div>
-            </div>
-            <p className="text-white/50 text-[10px] max-w-lg leading-relaxed line-clamp-1">
-              Real-time strategic analysis engine leveraging live tracking data for predictive outcomes.
-            </p>
-          </div>
-          
-          {/* Live Data Summary Card */}
-          <div className="flex gap-2">
-             <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-lg px-3 py-1.5 flex flex-col items-center min-w-[60px]">
-                <span className="text-[8px] text-white/40 font-bold uppercase tracking-wider mb-0.5">Score</span>
-                <span className="text-sm font-black text-white leading-none">{gameState.score.home}-{gameState.score.away}</span>
-             </div>
-             <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-lg px-3 py-1.5 flex flex-col items-center min-w-[60px]">
-                <span className="text-[8px] text-white/40 font-bold uppercase tracking-wider mb-0.5">Win Prob</span>
-                <span className="text-sm font-black text-[#ffe566] leading-none">{Math.round(gameState.winProb * 100)}%</span>
-             </div>
-             <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-lg px-3 py-1.5 flex flex-col items-center min-w-[60px]">
-                <span className="text-[8px] text-white/40 font-bold uppercase tracking-wider mb-0.5">EPA</span>
-                <span className="text-sm font-black text-green-400 leading-none">+{gameState.offensiveEpa}</span>
-             </div>
-          </div>
-        </div>
-      </div>
-
       {/* Chat Interface */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-black/20">
         {messages.map((msg, idx) => (
@@ -167,6 +124,20 @@ export const DeepResearch: React.FC<DeepResearchProps> = ({ gameState }) => {
               <RefreshCw size={10} /> Reset Context
            </button>
            <span className="text-[10px] text-white/20 uppercase tracking-widest">Model: Gemini 1.5 Pro</span>
+        </div>
+        <div className="flex justify-end gap-4 mt-4">
+          <div className="flex items-center gap-1.5 text-white/40">
+            <Clock size={12} />
+            <span className="text-[8px] uppercase tracking-widest">0-0</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-white/40">
+            <TrendingUp size={12} />
+            <span className="text-[8px] uppercase tracking-widest">50.00%</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-white/40">
+            <Activity size={12} />
+            <span className="text-[8px] uppercase tracking-widest">+6.48</span>
+          </div>
         </div>
       </div>
     </div>
