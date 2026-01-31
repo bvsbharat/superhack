@@ -28,9 +28,9 @@ class LLMService:
 
         try:
             genai.configure(api_key=settings.GEMINI_API_KEY)
-            self._model = genai.GenerativeModel("gemini-2-flash")
+            self._model = genai.GenerativeModel("gemini-3-pro-preview")
             self._initialized = True
-            logger.info("Gemini Vision API initialized with gemini-2-flash (fast frame analysis)")
+            logger.info("Gemini Vision API initialized with gemini-3-pro-preview (image vision analysis)")
             return True
         except Exception as e:
             logger.error(f"Failed to initialize Gemini: {e}")
