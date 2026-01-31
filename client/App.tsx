@@ -363,8 +363,14 @@ const App: React.FC = () => {
 
   // Handler for capturing highlights - persist to database
   const handleCaptureHighlight = useCallback(async (capture: HighlightCapture) => {
+    console.log('Highlight captured in App:', capture);
+
     // Add to local state
-    setHighlights(prev => [capture, ...prev].slice(0, 10));
+    setHighlights(prev => {
+      const updated = [capture, ...prev].slice(0, 10);
+      console.log('Highlights updated in App:', updated);
+      return updated;
+    });
 
     // Persist to database
     try {
@@ -391,6 +397,12 @@ const App: React.FC = () => {
         ? { ...h, ...updates }
         : h
     ));
+  }, []);
+
+  // Handler for updating entire highlights array (for halftime video)
+  const handleUpdateHighlights = useCallback((newHighlights: HighlightCapture[]) => {
+    console.log('Updating highlights with halftime video data:', newHighlights);
+    setHighlights(newHighlights);
   }, []);
 
   useEffect(() => {
@@ -634,6 +646,13 @@ const App: React.FC = () => {
               highlights={highlights}
               isExpanded={isMediaExpanded}
               onToggleExpand={() => setIsMediaExpanded(!isMediaExpanded)}
+              gameState={{
+                homeTeam: gameState.homeTeam,
+                awayTeam: gameState.awayTeam,
+                quarter: gameState.quarter,
+                score: gameState.score
+              }}
+              onUpdateHighlights={handleUpdateHighlights}
             />
           </div>
         )}

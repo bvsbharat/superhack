@@ -21,6 +21,7 @@ interface CombinedStatusProps {
     quarter: number;
     score: { home: number; away: number };
   };
+  onUpdateHighlights?: (highlights: HighlightCapture[]) => void;
 }
 
 export const CombinedStatus: React.FC<CombinedStatusProps> = ({
@@ -32,7 +33,8 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
   highlights,
   isExpanded = false,
   onToggleExpand,
-  gameState
+  gameState,
+  onUpdateHighlights
 }) => {
   const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
   const [showHighlight, setShowHighlight] = useState(false);
@@ -110,13 +112,17 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
       });
 
       if (videoUrl) {
-        console.log("Halftime video generated successfully!");
+        console.log("Halftime video generated successfully!", videoUrl);
         setHalftimeVideoGenerated(true);
-        // Update highlights with video URL
+
+        // Update highlights with video URL - add to all 4 reference images
         const updatedHighlights = highlights.map((h, idx) =>
           idx < 4 ? { ...h, videoUrl } : h
         );
-        // Note: In a real app, you'd update the highlights in parent component
+
+        // Update parent component with new highlights
+        onUpdateHighlights?.(updatedHighlights);
+        console.log("Updated highlights with video URL:", updatedHighlights);
       } else {
         console.error("Failed to generate halftime video");
       }

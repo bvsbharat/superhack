@@ -434,7 +434,12 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
 
   // Capture current frame as highlight with AI image generation
   const captureHighlight = async (event: AnalysisEvent) => {
-    if (!videoRef.current || isCapturing) return;
+    console.log('captureHighlight called with event:', event);
+
+    if (!videoRef.current || isCapturing) {
+      console.log('Early return: videoRef.current=', !!videoRef.current, 'isCapturing=', isCapturing);
+      return;
+    }
 
     const video = videoRef.current;
 
@@ -497,12 +502,16 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
       };
 
       // Add capture with frame image immediately
+      console.log('Calling onCaptureHighlight with:', capture);
       setHighlightCaptures(prev => [capture, ...prev].slice(0, 10));
       onCaptureHighlight?.(capture);
 
-      // Generate AI image asynchronously
+      // Generate AI image asynchronously for ALL captures (manual and auto)
       const prompt = buildHighlightPrompt(event);
+      console.log(`Starting AI image generation for highlight: ${captureId}, prompt: ${prompt}`);
+
       generateSportImage(prompt).then(aiImage => {
+        console.log(`AI image generated for ${captureId}: ${aiImage ? 'Success' : 'Failed'}`);
         if (aiImage) {
           // Update the local capture with AI-generated image
           setHighlightCaptures(prev => prev.map(c =>
@@ -521,8 +530,9 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
           ));
           onUpdateHighlight?.(captureId, { aiImageLoading: false });
         }
-      }).catch(() => {
+      }).catch((err) => {
         // Mark loading as complete on error
+        console.error(`Error generating AI image for ${captureId}:`, err);
         setHighlightCaptures(prev => prev.map(c =>
           c.id === captureId
             ? { ...c, aiImageLoading: false }
