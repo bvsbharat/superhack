@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Play, Maximize2, Minimize2, Zap, Target, BarChart3, MoreHorizontal, Camera, ChevronLeft, ChevronRight, Download, TrendingUp, Film, Loader } from 'lucide-react';
+import { Play, Maximize2, Minimize2, Zap, Target, BarChart3, MoreHorizontal, Camera, ChevronLeft, ChevronRight, Download, TrendingUp, Film, Loader, Video } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Player, HighlightCapture } from '../types';
 import { getTeam } from '../config/nflTeams';
@@ -22,6 +22,8 @@ interface CombinedStatusProps {
     score: { home: number; away: number };
   };
   onUpdateHighlights?: (highlights: HighlightCapture[]) => void;
+  onGenerateVideo?: () => void;
+  isGeneratingVideo?: boolean;
 }
 
 export const CombinedStatus: React.FC<CombinedStatusProps> = ({
@@ -34,7 +36,9 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
   isExpanded = false,
   onToggleExpand,
   gameState,
-  onUpdateHighlights
+  onUpdateHighlights,
+  onGenerateVideo,
+  isGeneratingVideo = false
 }) => {
   const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
   const [showHighlight, setShowHighlight] = useState(false);
@@ -130,6 +134,15 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
               <Play size={18} />
             </button>
           )}
+          {isGeneratingVideo && (
+            <button
+              disabled
+              className="p-4 bg-blue-500/20 backdrop-blur-3xl rounded-full border border-blue-500/30 transition-all text-blue-400 shadow-xl opacity-50 cursor-not-allowed"
+              title="Generating Video..."
+            >
+              <Loader size={18} className="animate-spin" />
+            </button>
+          )}
           {generatingHalftimeVideo && (
             <button
               disabled
@@ -137,6 +150,15 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
               title="Generating Video..."
             >
               <Loader size={18} className="animate-spin" />
+            </button>
+          )}
+          {!isGeneratingVideo && !generatingHalftimeVideo && highlights.length >= 4 && (
+            <button
+              onClick={onGenerateVideo}
+              className="p-4 bg-purple-500/20 backdrop-blur-3xl rounded-full border border-purple-500/30 hover:bg-purple-500/30 transition-all text-purple-400 shadow-xl"
+              title="Generate Video from Highlights"
+            >
+              <Video size={18} />
             </button>
           )}
           <button

@@ -9,6 +9,7 @@ import { LoginPage } from './components/LoginPage';
 import { AIInsightPanel } from './components/AIInsightPanel';
 import TeamSelector, { TeamSelectionConfig } from './components/TeamSelector';
 import { AnalysisEvent } from './services/stream';
+import { generateHalftimeVideo } from './services/videoGeneration';
 import { DEFAULT_HOME_TEAM, DEFAULT_AWAY_TEAM } from './config/nflTeams';
 import { useDeepAnalytics } from './hooks/useDeepAnalytics';
 import { Player, GameState, ViewTab, HighlightCapture } from './types';
@@ -65,6 +66,7 @@ const App: React.FC = () => {
   const [liveAnalysis, setLiveAnalysis] = useState<AnalysisEvent[]>([]);
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
   const [highlights, setHighlights] = useState<HighlightCapture[]>([]);
+  const [isGeneratingVideoExpanded, setIsGeneratingVideoExpanded] = useState(false);
 
   // Team Selection & Analytics Configuration
   const [teamSelection, setTeamSelection] = useState<TeamSelectionConfig>(() => {
@@ -405,6 +407,55 @@ const App: React.FC = () => {
     setHighlights(newHighlights);
   }, []);
 
+  // Handle manual video generation from expanded view
+  const handleGenerateVideoExpanded = useCallback(async () => {
+    if (highlights.length < 4) {
+      console.warn('Not enough highlights to generate video');
+      return;
+    }
+
+    setIsGeneratingVideoExpanded(true);
+
+    try {
+      // Get up to 4 reference images (prefer AI-enhanced)
+      const referenceImages = highlights
+        .slice(0, 4)
+        .map(h => h.aiImageUrl || h.imageUrl)
+        .filter(Boolean) as string[];
+
+      if (referenceImages.length < 4) {
+        throw new Error('Not enough valid images');
+      }
+
+      console.log(`Generating video with ${referenceImages.length} reference images from expanded view...`);
+
+      const videoUrl = await generateHalftimeVideo(referenceImages, {
+        homeTeam: gameState.homeTeam,
+        awayTeam: gameState.awayTeam,
+        quarter: gameState.quarter,
+        homeScore: gameState.score.home,
+        awayScore: gameState.score.away,
+      });
+
+      if (videoUrl) {
+        console.log('Video generated successfully from expanded view!', videoUrl);
+
+        // Update the first 4 highlights with video URL
+        const updatedHighlights = highlights.map((h, idx) =>
+          idx < 4 ? { ...h, videoUrl, videoGenerating: false } : h
+        );
+
+        setHighlights(updatedHighlights);
+      } else {
+        throw new Error('Video generation returned no URL');
+      }
+    } catch (error) {
+      console.error('Error generating video from expanded view:', error);
+    } finally {
+      setIsGeneratingVideoExpanded(false);
+    }
+  }, [highlights, gameState]);
+
   useEffect(() => {
     if (!isSimulating) return;
 
@@ -653,6 +704,8 @@ const App: React.FC = () => {
                 score: gameState.score
               }}
               onUpdateHighlights={handleUpdateHighlights}
+              onGenerateVideo={handleGenerateVideoExpanded}
+              isGeneratingVideo={isGeneratingVideoExpanded}
             />
           </div>
         )}
