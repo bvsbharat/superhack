@@ -20,6 +20,7 @@ import {
   getFullMatchData,
   MatchInfo,
 } from './services/match';
+import { saveSimulationSnapshot, getSimulationSnapshots, replaySimulationSnapshots } from './services/simulation';
 
 // Types moved to ./types.ts
 
@@ -50,6 +51,9 @@ const App: React.FC = () => {
   const [ballPos, setBallPos] = useState({ x: 0, y: 0 });
   const [playCycle, setPlayCycle] = useState(0);
   const [losY, setLosY] = useState(0);
+  const [isReplayingSimulation, setIsReplayingSimulation] = useState(false);
+  const [replaySnapshots, setReplaySnapshots] = useState<any[]>([]);
+  const [replayIndex, setReplayIndex] = useState(0);
 
   // Live streaming state
   const [isLiveMode, setIsLiveMode] = useState(false);
@@ -101,6 +105,53 @@ const App: React.FC = () => {
     setSimSeconds(900);
     setPlayCycle(0);
     setLosY(0);
+  };
+
+  const stopSimulation = () => {
+    setIsSimulating(false);
+    setSimSeconds(0);
+    setPlayCycle(0);
+  };
+
+  const loadAndPlaybackPreviousSimulation = async () => {
+    if (!currentMatch?.id) return;
+
+    try {
+      const snapshots = await getSimulationSnapshots(currentMatch.id);
+      if (snapshots.length === 0) {
+        console.log('No previous simulations found');
+        return;
+      }
+
+      setReplaySnapshots(snapshots);
+      setReplayIndex(0);
+      setIsReplayingSimulation(true);
+
+      // Apply first snapshot
+      if (snapshots[0]) {
+        const snapshot = snapshots[0];
+        setGameState(prev => ({
+          ...prev,
+          clock: snapshot.clock,
+          quarter: snapshot.quarter,
+          score: { home: snapshot.score.home, away: snapshot.score.away },
+          down: snapshot.down,
+          distance: snapshot.distance,
+          possession: snapshot.possession,
+        }));
+        setDynamicPositions(snapshot.player_positions || {});
+        setBallPos(snapshot.ball_position);
+        setLosY(snapshot.line_of_scrimmage_y);
+      }
+    } catch (error) {
+      console.error('Failed to load previous simulation:', error);
+    }
+  };
+
+  const stopReplay = () => {
+    setIsReplayingSimulation(false);
+    setReplaySnapshots([]);
+    setReplayIndex(0);
   };
 
   // Persist team selection to localStorage
@@ -356,6 +407,34 @@ const App: React.FC = () => {
       const nextCycle = (playCycle + 1) % 40; // 40-second comprehensive play cycle
       setPlayCycle(nextCycle);
 
+      // Save snapshot every 5 seconds (every 5th update)
+      if (nextCycle % 5 === 0 && currentMatch?.id) {
+        setDynamicPositions(prev => {
+          const mins = Math.floor((simSeconds - 1) / 60);
+          const secs = (simSeconds - 1) % 60;
+          const timestamp = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+          saveSimulationSnapshot(currentMatch.id, {
+            timestamp,
+            play_cycle: nextCycle,
+            sim_seconds_remaining: simSeconds - 1,
+            quarter: gameState.quarter,
+            clock: gameState.clock,
+            score_home: gameState.score.home,
+            score_away: gameState.score.away,
+            down: gameState.down,
+            distance: gameState.distance,
+            possession: gameState.possession,
+            line_of_scrimmage_y: losY,
+            player_positions: prev,
+            ball_x: ballPos.x,
+            ball_y: ballPos.y,
+          }).catch(err => console.error('Failed to save simulation snapshot:', err));
+
+          return prev;
+        });
+      }
+
       // Simulation Engine: Movement & Ball Tracking
       setDynamicPositions(prev => {
         const next: Record<string, {x: number, y: number}> = {};
@@ -443,6 +522,40 @@ const App: React.FC = () => {
     return () => clearInterval(timer);
   }, [isSimulating, playCycle, losY]);
 
+  // Replay simulation from snapshots
+  useEffect(() => {
+    if (!isReplayingSimulation || replaySnapshots.length === 0) return;
+
+    const replayTimer = setInterval(() => {
+      setReplayIndex(prev => {
+        const nextIndex = prev + 1;
+        if (nextIndex >= replaySnapshots.length) {
+          // Replay finished
+          setIsReplayingSimulation(false);
+          return 0;
+        }
+
+        const snapshot = replaySnapshots[nextIndex];
+        setGameState(prevState => ({
+          ...prevState,
+          clock: snapshot.clock,
+          quarter: snapshot.quarter,
+          score: { home: snapshot.score.home, away: snapshot.score.away },
+          down: snapshot.down,
+          distance: snapshot.distance,
+          possession: snapshot.possession,
+        }));
+        setDynamicPositions(snapshot.player_positions || {});
+        setBallPos(snapshot.ball_position);
+        setLosY(snapshot.line_of_scrimmage_y);
+
+        return nextIndex;
+      });
+    }, 250); // Playback at 4x speed (every 250ms instead of 1s)
+
+    return () => clearInterval(replayTimer);
+  }, [isReplayingSimulation, replaySnapshots]);
+
   useEffect(() => {
     const mins = Math.floor(simSeconds / 60);
     const secs = simSeconds % 60;
@@ -486,6 +599,8 @@ const App: React.FC = () => {
               dynamicPositions={dynamicPositions}
               ballPos={ballPos}
               onStartSimulation={startSimulation}
+              onStopSimulation={stopSimulation}
+              onLoadPreviousSimulation={loadAndPlaybackPreviousSimulation}
               isLiveMode={isLiveMode}
               onLiveModeChange={setIsLiveMode}
               liveStream={liveStream}

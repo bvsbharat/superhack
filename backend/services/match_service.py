@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import re
 
-from database.models import Match, AnalysisEvent, MatchHighlight, MatchMetrics, MatchStatus
+from database.models import Match, AnalysisEvent, MatchHighlight, MatchMetrics, MatchStatus, SimulationSnapshot
 from database.connection import get_db_session
 from utils.logger import logger
 
@@ -243,6 +243,55 @@ class MatchService:
     def get_all_matches(db: Session, limit: int = 20) -> List[Match]:
         """Get all matches (history)"""
         return db.query(Match).order_by(Match.created_at.desc()).limit(limit).all()
+
+    @staticmethod
+    def save_simulation_snapshot(
+        db: Session,
+        match_id: str,
+        timestamp: str,
+        play_cycle: int,
+        sim_seconds_remaining: int,
+        quarter: int,
+        clock: str,
+        score_home: int,
+        score_away: int,
+        down: int,
+        distance: int,
+        possession: str,
+        line_of_scrimmage_y: float,
+        player_positions: Optional[Dict[str, Dict[str, float]]] = None,
+        ball_x: float = 0.0,
+        ball_y: float = 0.0
+    ) -> SimulationSnapshot:
+        """Save a simulation state snapshot"""
+        snapshot = SimulationSnapshot(
+            match_id=match_id,
+            timestamp=timestamp,
+            play_cycle=play_cycle,
+            sim_seconds_remaining=sim_seconds_remaining,
+            quarter=quarter,
+            clock=clock,
+            score_home=score_home,
+            score_away=score_away,
+            down=down,
+            distance=distance,
+            possession=possession,
+            line_of_scrimmage_y=line_of_scrimmage_y,
+            player_positions=player_positions,
+            ball_x=ball_x,
+            ball_y=ball_y,
+        )
+        db.add(snapshot)
+        db.commit()
+        db.refresh(snapshot)
+        return snapshot
+
+    @staticmethod
+    def get_simulation_snapshots(db: Session, match_id: str, limit: int = 500) -> List[SimulationSnapshot]:
+        """Get all simulation snapshots for a match"""
+        return db.query(SimulationSnapshot).filter(
+            SimulationSnapshot.match_id == match_id
+        ).order_by(SimulationSnapshot.created_at.asc()).limit(limit).all()
 
     # Team extraction methods
 

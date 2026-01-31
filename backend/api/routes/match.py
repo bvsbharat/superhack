@@ -35,6 +35,23 @@ class AddHighlightRequest(BaseModel):
     player_name: Optional[str] = None
 
 
+class SaveSimulationSnapshotRequest(BaseModel):
+    timestamp: str
+    play_cycle: int
+    sim_seconds_remaining: int
+    quarter: int
+    clock: str
+    score_home: int
+    score_away: int
+    down: int
+    distance: int
+    possession: str
+    line_of_scrimmage_y: float
+    player_positions: Optional[dict] = None
+    ball_x: float = 0.0
+    ball_y: float = 0.0
+
+
 class TeamPreferenceRequest(BaseModel):
     """Team selection and analytics configuration"""
     selected_team: str  # e.g., "KC"
@@ -342,3 +359,56 @@ async def set_team_preference(
         analytics_filter=preference.analytics_filter,
         message=f"Team preference set to {preference.selected_team} with {preference.analytics_filter} analytics"
     )
+
+
+@router.post("/{match_id}/simulation/snapshot", response_model=dict)
+async def save_simulation_snapshot(
+    match_id: str,
+    request: SaveSimulationSnapshotRequest,
+    db: Session = Depends(get_db)
+):
+    """Save a simulation state snapshot"""
+    # Verify match exists
+    match = MatchService.get_match(db, match_id)
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    snapshot = MatchService.save_simulation_snapshot(
+        db=db,
+        match_id=match_id,
+        timestamp=request.timestamp,
+        play_cycle=request.play_cycle,
+        sim_seconds_remaining=request.sim_seconds_remaining,
+        quarter=request.quarter,
+        clock=request.clock,
+        score_home=request.score_home,
+        score_away=request.score_away,
+        down=request.down,
+        distance=request.distance,
+        possession=request.possession,
+        line_of_scrimmage_y=request.line_of_scrimmage_y,
+        player_positions=request.player_positions,
+        ball_x=request.ball_x,
+        ball_y=request.ball_y,
+    )
+
+    return {
+        "message": "Simulation snapshot saved",
+        "snapshot": snapshot.to_dict()
+    }
+
+
+@router.get("/{match_id}/simulation/snapshots", response_model=List[dict])
+async def get_simulation_snapshots(
+    match_id: str,
+    limit: int = 500,
+    db: Session = Depends(get_db)
+):
+    """Get all simulation snapshots for a match"""
+    # Verify match exists
+    match = MatchService.get_match(db, match_id)
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    snapshots = MatchService.get_simulation_snapshots(db, match_id, limit=limit)
+    return [s.to_dict() for s in snapshots]

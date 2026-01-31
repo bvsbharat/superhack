@@ -17,6 +17,8 @@ interface MatchOverviewProps {
   dynamicPositions: Record<string, {x: number, y: number}>;
   ballPos: { x: number, y: number };
   onStartSimulation: () => void;
+  onStopSimulation?: () => void;
+  onLoadPreviousSimulation?: () => void;
   isLiveMode: boolean;
   onLiveModeChange: (live: boolean) => void;
   liveStream: MediaStream | null;
@@ -272,6 +274,8 @@ export const MatchOverview: React.FC<MatchOverviewProps> = ({
   dynamicPositions,
   ballPos,
   onStartSimulation,
+  onStopSimulation,
+  onLoadPreviousSimulation,
   isLiveMode,
   onLiveModeChange,
   liveStream,
@@ -831,14 +835,39 @@ export const MatchOverview: React.FC<MatchOverviewProps> = ({
             )}
 
             {/* Simulation Trigger */}
-            <button
-              onClick={onStartSimulation}
-              disabled={isSimulating}
-              className="w-full py-3 bg-white/5 border border-white/10 rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-white/10 active:scale-95 transition-all disabled:opacity-50"
-            >
-              <Play size={12} fill="currentColor" />
-              {isSimulating ? 'MATCH IN PROGRESS...' : 'START 15-MIN FULL MATCH SIMULATION'}
-            </button>
+            <div className="flex gap-2 flex-col">
+              <div className="flex gap-2">
+                <button
+                  onClick={onStartSimulation}
+                  disabled={isSimulating}
+                  className="flex-1 py-3 bg-white/5 border border-white/10 rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-white/10 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  <Play size={12} fill="currentColor" />
+                  {isSimulating ? 'MATCH IN PROGRESS...' : 'START 15-MIN FULL MATCH SIMULATION'}
+                </button>
+                {isSimulating && onStopSimulation && (
+                  <button
+                    onClick={onStopSimulation}
+                    className="px-6 py-3 bg-red-500/20 border border-red-500/50 rounded-2xl text-red-400 font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-red-500/30 active:scale-95 transition-all"
+                    title="Stop simulation immediately"
+                  >
+                    <StopCircle size={12} />
+                    Stop
+                  </button>
+                )}
+              </div>
+              {onLoadPreviousSimulation && (
+                <button
+                  onClick={onLoadPreviousSimulation}
+                  disabled={isSimulating}
+                  className="w-full py-2 bg-blue-500/20 border border-blue-500/50 rounded-2xl text-blue-400 font-black text-[9px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-500/30 active:scale-95 transition-all disabled:opacity-50"
+                  title="Load and replay previous simulation"
+                >
+                  <Zap size={11} />
+                  Load Previous Simulation
+                </button>
+              )}
+            </div>
 
             <div className="grid grid-cols-4 gap-2">
               <div className="flex flex-col items-center py-2.5 bg-black/40 rounded-2xl border border-white/5">

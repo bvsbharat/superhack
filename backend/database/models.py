@@ -164,6 +164,65 @@ class MatchHighlight(Base):
         }
 
 
+class SimulationSnapshot(Base):
+    """
+    Stores snapshots of simulation state captured during live simulations.
+    """
+    __tablename__ = "simulation_snapshots"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    match_id = Column(String(36), ForeignKey("matches.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Simulation timing
+    timestamp = Column(String(20))  # Game clock time
+    play_cycle = Column(Integer, default=0)  # 0-39 second cycle
+    sim_seconds_remaining = Column(Integer, default=0)  # Seconds left in simulation
+
+    # Game state snapshot
+    quarter = Column(Integer, default=1)
+    clock = Column(String(10), default="15:00")
+    score_home = Column(Integer, default=0)
+    score_away = Column(Integer, default=0)
+    down = Column(Integer, default=1)
+    distance = Column(Integer, default=10)
+    possession = Column(String(10), default="KC")
+    line_of_scrimmage_y = Column(Float, default=0.0)
+
+    # Player positions snapshot (JSON: {playerId: {x, y}})
+    player_positions = Column(JSON, nullable=True)
+
+    # Ball position
+    ball_x = Column(Float, default=0.0)
+    ball_y = Column(Float, default=0.0)
+
+    # Relationship
+    match = relationship("Match", foreign_keys=[match_id])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp,
+            "play_cycle": self.play_cycle,
+            "sim_seconds_remaining": self.sim_seconds_remaining,
+            "quarter": self.quarter,
+            "clock": self.clock,
+            "score": {
+                "home": self.score_home,
+                "away": self.score_away,
+            },
+            "down": self.down,
+            "distance": self.distance,
+            "possession": self.possession,
+            "line_of_scrimmage_y": self.line_of_scrimmage_y,
+            "player_positions": self.player_positions,
+            "ball_position": {
+                "x": self.ball_x,
+                "y": self.ball_y,
+            },
+        }
+
+
 class MatchMetrics(Base):
     """
     Aggregated metrics for a match, updated as events come in.
