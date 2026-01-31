@@ -10,6 +10,7 @@ from typing import Optional, List, Dict, Any
 
 from models.schemas import GameState
 from services.deep_research import deep_research_service, StrategyInsight
+from services.deep_think_tactics import deep_think_tactics_service, HalftimeTactics
 from utils.logger import logger
 
 
@@ -69,6 +70,39 @@ class ContextStatsResponse(BaseModel):
     items_by_importance: Dict[str, int]
     creation_time: str
     last_compression: str
+
+
+class HalftimeTacticsRequest(BaseModel):
+    """Request for halftime tactics generation."""
+
+    game_state: GameState
+    possession_team: str = "KC"
+    defense_team: str = "SF"
+
+
+class HalftimeTacticsResponse(BaseModel):
+    """Response with halftime tactics."""
+
+    title: str
+    summary: str
+    offensive_strategy: str
+    defensive_strategy: str
+    key_formations: List[Dict[str, Any]]
+    personnel_adjustments: List[Dict[str, str]]
+    play_calling_priorities: List[str]
+    counter_measures: List[str]
+    probability_of_success: float
+    confidence: float
+    reasoning: str
+    simulation_playbook: List[Dict[str, Any]]
+
+
+class NextPlaySuggestionRequest(BaseModel):
+    """Request for next play suggestion."""
+
+    game_state: GameState
+    recent_plays: List[Dict[str, Any]]
+    possession_team: str = "KC"
 
 
 # Create router
@@ -253,4 +287,74 @@ async def reset_context() -> Dict[str, str]:
         return {"status": "success", "message": "Context store reset"}
     except Exception as e:
         logger.error(f"Failed to reset context: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/halftime-tactics", response_model=HalftimeTacticsResponse, summary="Generate halftime tactics")
+async def generate_halftime_tactics(request: HalftimeTacticsRequest) -> HalftimeTacticsResponse:
+    """
+    Generate comprehensive halftime tactics using deep think model.
+
+    Provides detailed offensive and defensive strategies for the second half
+    based on first-half game data, formations, personnel adjustments, and
+    play-calling priorities with success probability estimates.
+
+    Uses Gemini's deep think capabilities for complex strategic analysis.
+    """
+    try:
+        tactics = deep_think_tactics_service.generate_halftime_tactics(
+            game_state=request.game_state,
+            possession_team=request.possession_team,
+            defense_team=request.defense_team,
+        )
+
+        if not tactics:
+            raise HTTPException(status_code=500, detail="Failed to generate halftime tactics")
+
+        return HalftimeTacticsResponse(
+            title=tactics.title,
+            summary=tactics.summary,
+            offensive_strategy=tactics.offensive_strategy,
+            defensive_strategy=tactics.defensive_strategy,
+            key_formations=tactics.key_formations,
+            personnel_adjustments=tactics.personnel_adjustments,
+            play_calling_priorities=tactics.play_calling_priorities,
+            counter_measures=tactics.counter_measures,
+            probability_of_success=tactics.probability_of_success,
+            confidence=tactics.confidence,
+            reasoning=tactics.reasoning,
+            simulation_playbook=tactics.simulation_playbook,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Halftime tactics generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/next-play", summary="Get next play suggestion")
+async def get_next_play_suggestion(request: NextPlaySuggestionRequest) -> Dict[str, Any]:
+    """
+    Get AI-suggested next play based on current game situation.
+
+    Analyzes down, distance, field position, and recent play success
+    to recommend optimal play type, formation, and key personnel.
+    """
+    try:
+        suggestion = deep_think_tactics_service.generate_next_play_suggestion(
+            game_state=request.game_state,
+            recent_plays=request.recent_plays,
+            possession_team=request.possession_team,
+        )
+
+        if not suggestion:
+            raise HTTPException(status_code=500, detail="Failed to generate play suggestion")
+
+        return suggestion
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Play suggestion failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
