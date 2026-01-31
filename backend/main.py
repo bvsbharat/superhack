@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from config import settings
-from api.routes import video_router, game_state_router, websocket_router, stream_router
+from api.routes import video_router, game_state_router, websocket_router, stream_router, video_generation_router
 from api.routes.match import router as match_router
 from core.vision_agent import vision_agent, VISION_AGENTS_AVAILABLE
 from core.football_agent import football_agent, VISION_AGENTS_AVAILABLE as STREAM_AVAILABLE
@@ -67,6 +67,11 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("STREAM_API_KEY not set - live streaming disabled")
 
+    if settings.VEO_API_KEY:
+        logger.info("Veo 3.1 API configured")
+    else:
+        logger.warning("VEO_API_KEY not set - video generation disabled")
+
     logger.info(f"Server ready on {settings.HOST}:{settings.PORT}")
 
     yield
@@ -98,6 +103,7 @@ app.include_router(video_router, tags=["Video Analysis"])
 app.include_router(game_state_router, tags=["Game State"])
 app.include_router(websocket_router, tags=["WebSocket"])
 app.include_router(stream_router, tags=["WebRTC Streaming"])
+app.include_router(video_generation_router, tags=["Video Generation"])
 app.include_router(match_router, prefix="/match", tags=["Match Management"])
 
 
@@ -117,6 +123,7 @@ async def health_check():
             "webrtc_streaming": STREAM_AVAILABLE and football_agent.is_available,
             "gemini_enabled": bool(settings.GEMINI_API_KEY),
             "stream_enabled": bool(settings.STREAM_API_KEY),
+            "veo_video_generation": bool(settings.VEO_API_KEY),
         },
     }
 

@@ -39,4 +39,7 @@ export interface HighlightCapture {
   event: string;
   confidence: number;
   playerName?: string;
+  videoUrl?: string;
+  videoGenerating?: boolean;
+  videoError?: string;
 }

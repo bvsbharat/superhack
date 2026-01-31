@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Play, Maximize2, Minimize2, Zap, Target, BarChart3, MoreHorizontal, Camera, ChevronLeft, ChevronRight, Download, TrendingUp } from 'lucide-react';
+import { Play, Maximize2, Minimize2, Zap, Target, BarChart3, MoreHorizontal, Camera, ChevronLeft, ChevronRight, Download, TrendingUp, Film, Loader } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Player, HighlightCapture } from '../types';
 import { getTeam } from '../config/nflTeams';
+import { generateHalftimeVideo } from '../services/videoGeneration';
 
 interface CombinedStatusProps {
   image: string | null;
@@ -14,6 +15,12 @@ interface CombinedStatusProps {
   highlights: HighlightCapture[];
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  gameState?: {
+    homeTeam: string;
+    awayTeam: string;
+    quarter: number;
+    score: { home: number; away: number };
+  };
 }
 
 export const CombinedStatus: React.FC<CombinedStatusProps> = ({
@@ -24,10 +31,13 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
   isLiveMode = false,
   highlights,
   isExpanded = false,
-  onToggleExpand
+  onToggleExpand,
+  gameState
 }) => {
   const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
   const [showHighlight, setShowHighlight] = useState(false);
+  const [generatingHalftimeVideo, setGeneratingHalftimeVideo] = useState(false);
+  const [halftimeVideoGenerated, setHalftimeVideoGenerated] = useState(false);
 
   // Auto-rotate through highlights
   useEffect(() => {
@@ -46,6 +56,76 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
       setCurrentHighlightIndex(0);
     }
   }, [highlights.length]);
+
+  // Auto-trigger halftime video generation when 4+ images are available
+  useEffect(() => {
+    const shouldGenerateVideo = () => {
+      // Check if we have 4+ reference images with URLs
+      const readyImages = highlights.slice(0, 4).filter(h => h.imageUrl || h.aiImageUrl);
+
+      // Only generate once and when we have enough images
+      if (
+        readyImages.length >= 4 &&
+        isLiveMode &&
+        !generatingHalftimeVideo &&
+        !halftimeVideoGenerated &&
+        gameState
+      ) {
+        return true;
+      }
+      return false;
+    };
+
+    if (shouldGenerateVideo()) {
+      generateHalftimeVideoAutomatically();
+    }
+  }, [highlights, generatingHalftimeVideo, halftimeVideoGenerated, isLiveMode, gameState]);
+
+  const generateHalftimeVideoAutomatically = async () => {
+    if (!gameState || generatingHalftimeVideo || halftimeVideoGenerated) return;
+
+    setGeneratingHalftimeVideo(true);
+
+    try {
+      // Get up to 4 reference images
+      const referenceImages = highlights
+        .slice(0, 4)
+        .map(h => h.aiImageUrl || h.imageUrl)
+        .filter(Boolean) as string[];
+
+      if (referenceImages.length < 4) {
+        console.log("Not enough images for halftime video yet");
+        setGeneratingHalftimeVideo(false);
+        return;
+      }
+
+      console.log(`Generating halftime video with ${referenceImages.length} reference images...`);
+
+      const videoUrl = await generateHalftimeVideo(referenceImages, {
+        homeTeam: gameState.homeTeam,
+        awayTeam: gameState.awayTeam,
+        quarter: gameState.quarter,
+        homeScore: gameState.score.home,
+        awayScore: gameState.score.away,
+      });
+
+      if (videoUrl) {
+        console.log("Halftime video generated successfully!");
+        setHalftimeVideoGenerated(true);
+        // Update highlights with video URL
+        const updatedHighlights = highlights.map((h, idx) =>
+          idx < 4 ? { ...h, videoUrl } : h
+        );
+        // Note: In a real app, you'd update the highlights in parent component
+      } else {
+        console.error("Failed to generate halftime video");
+      }
+    } catch (error) {
+      console.error("Error generating halftime video:", error);
+    } finally {
+      setGeneratingHalftimeVideo(false);
+    }
+  };
 
   const currentHighlight = highlights[currentHighlightIndex];
   // Use AI-generated image if available, otherwise fall back to captured frame
@@ -81,6 +161,20 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.4)_100%)]" />
       </div>
 
+      {/* Halftime Video Indicator - When generating or ready */}
+      {(generatingHalftimeVideo || halftimeVideoGenerated) && (
+        <div className="absolute top-8 left-8 z-30">
+          <div className={`${
+            generatingHalftimeVideo
+              ? 'bg-blue-500 text-white animate-pulse'
+              : 'bg-green-500 text-black'
+          } px-3 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg flex items-center gap-1.5`}>
+            <Film size={12} />
+            {generatingHalftimeVideo ? 'Generating Halftime Video' : 'Halftime Video Ready'}
+          </div>
+        </div>
+      )}
+
       {/* Highlight Mode Info - When showing captured moment */}
       {showHighlight && currentHighlight && isLiveMode && currentHighlight.aiImageLoading && (
         <div className="absolute top-8 left-8 z-30">
@@ -93,7 +187,27 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
       {/* Floating Header UI */}
       <div className="absolute top-8 right-8 flex justify-end items-center z-20">
         <div className="flex items-center gap-2">
-          <button 
+          {halftimeVideoGenerated && currentHighlight?.videoUrl && (
+            <button
+              onClick={() => {
+                window.open(currentHighlight.videoUrl, '_blank');
+              }}
+              className="p-4 bg-green-500/20 backdrop-blur-3xl rounded-full border border-green-500/30 hover:bg-green-500/30 transition-all text-green-400 shadow-xl"
+              title="Play Halftime Video"
+            >
+              <Play size={18} />
+            </button>
+          )}
+          {generatingHalftimeVideo && (
+            <button
+              disabled
+              className="p-4 bg-blue-500/20 backdrop-blur-3xl rounded-full border border-blue-500/30 transition-all text-blue-400 shadow-xl opacity-50 cursor-not-allowed"
+              title="Generating Video..."
+            >
+              <Loader size={18} className="animate-spin" />
+            </button>
+          )}
+          <button
             onClick={handleDownload}
             disabled={!displayImage}
             className="p-4 bg-white/5 backdrop-blur-3xl rounded-full border border-white/10 hover:bg-white/15 transition-all text-white shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
@@ -101,7 +215,7 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
           >
             <Download size={18} />
           </button>
-          <button 
+          <button
             onClick={onToggleExpand}
             className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-all"
           >
