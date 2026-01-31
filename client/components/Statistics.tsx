@@ -9,6 +9,8 @@ import { Player, GameState, ViewTab, HighlightCapture } from '../types';
 import { AnalysisEvent } from '../services/stream';
 import { NFL_TEAMS, getTeam, findTeam } from '../config/nflTeams';
 import { generateSportImage } from '../services/gemini';
+import { retryWithBackoff } from '../services/aiRetry';
+import { generateHalftimeVideo } from '../services/videoGeneration';
 import { FastAnalytics, DeepAnalytics } from '../services/analyticsTypes';
 import { LiveCommentaryPanel } from './LiveCommentaryPanel';
 // TeamSelector moved to Sidebar
@@ -108,6 +110,9 @@ export const Statistics: React.FC<StatisticsProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [highlightCaptures, setHighlightCaptures] = useState<HighlightCapture[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [selectedHighlight, setSelectedHighlight] = useState<string | null>(null);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [videoGenerationError, setVideoGenerationError] = useState<string | null>(null);
 
   // Track captured event timestamps to prevent duplicates
   const capturedEventsRef = useRef<Set<string>>(new Set());
@@ -159,6 +164,7 @@ export const Statistics: React.FC<StatisticsProps> = ({
 
     // Skip if already captured this event (unless it's a manual capture)
     if (!latestEvent.isManualCapture && capturedEventsRef.current.has(eventKey)) {
+      console.log('Skipping duplicate event:', eventKey);
       return;
     }
 
@@ -186,6 +192,15 @@ export const Statistics: React.FC<StatisticsProps> = ({
     // Manual captures bypass the significance filter - capture all events
     const shouldCapture = latestEvent.isManualCapture || (isSignificant || isScoring);
 
+    console.log('Auto-capture check:', {
+      event: latestEvent.event,
+      isManual: latestEvent.isManualCapture,
+      isSignificant,
+      isScoring,
+      shouldCapture,
+      isCapturing
+    });
+
     if (shouldCapture && !isCapturing) {
       // Mark as captured before triggering
       capturedEventsRef.current.add(eventKey);
@@ -196,6 +211,7 @@ export const Statistics: React.FC<StatisticsProps> = ({
         capturedEventsRef.current = new Set(keysArray.slice(-50));
       }
 
+      console.log('AUTO-CAPTURING EVENT:', latestEvent.event);
       captureHighlight(latestEvent);
     }
   }, [liveAnalysis, isLiveMode, isCapturing]);
@@ -432,6 +448,34 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
     return prompt;
   };
 
+  // Helper: Wait for video to be ready with valid dimensions
+  const waitForVideoReady = (video: HTMLVideoElement, timeoutMs = 3000): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+
+      const checkReady = () => {
+        const hasValidDimensions = video.videoWidth > 0 && video.videoHeight > 0;
+        const isReady = video.readyState >= 2;
+
+        if (hasValidDimensions && isReady) {
+          console.log('Video ready:', video.videoWidth, 'x', video.videoHeight);
+          resolve(true);
+          return;
+        }
+
+        if (Date.now() - startTime > timeoutMs) {
+          console.warn('Video ready timeout - dimensions:', video.videoWidth, 'x', video.videoHeight);
+          resolve(false);
+          return;
+        }
+
+        setTimeout(checkReady, 100);
+      };
+
+      checkReady();
+    });
+  };
+
   // Capture current frame as highlight with AI image generation
   const captureHighlight = async (event: AnalysisEvent) => {
     console.log('captureHighlight called with event:', event);
@@ -443,25 +487,23 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
 
     const video = videoRef.current;
 
-    // Check if video has valid dimensions (not 0x0)
-    const videoWidth = video.videoWidth;
-    const videoHeight = video.videoHeight;
-
-    // If video isn't ready or has no dimensions, skip frame capture but still generate AI image
-    const hasValidVideo = videoWidth > 0 && videoHeight > 0 && video.readyState >= 2;
-
     setIsCapturing(true);
     try {
+      // Wait for video to be ready
+      const isVideoReady = await waitForVideoReady(video, 3000);
+      console.log('Video ready status:', isVideoReady);
+
       let imageUrl = '';
 
-      if (hasValidVideo) {
+      if (isVideoReady) {
         const canvas = document.createElement('canvas');
-        canvas.width = videoWidth;
-        canvas.height = videoHeight;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           imageUrl = canvas.toDataURL('image/jpeg', 0.8);
+          console.log('Frame captured successfully');
         }
       }
 
@@ -506,42 +548,103 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
       setHighlightCaptures(prev => [capture, ...prev].slice(0, 10));
       onCaptureHighlight?.(capture);
 
-      // Generate AI image asynchronously for ALL captures (manual and auto)
+      // Generate AI image asynchronously with retry
       const prompt = buildHighlightPrompt(event);
-      console.log(`Starting AI image generation for highlight: ${captureId}, prompt: ${prompt}`);
+      console.log(`Starting AI image generation for highlight: ${captureId}`);
 
-      generateSportImage(prompt).then(aiImage => {
+      retryWithBackoff(
+        () => generateSportImage(prompt),
+        {
+          maxAttempts: 3,
+          delayMs: 2000,
+          timeoutMs: 30000
+        }
+      ).then(aiImage => {
         console.log(`AI image generated for ${captureId}: ${aiImage ? 'Success' : 'Failed'}`);
         if (aiImage) {
-          // Update the local capture with AI-generated image
           setHighlightCaptures(prev => prev.map(c =>
             c.id === captureId
               ? { ...c, aiImageUrl: aiImage, aiImageLoading: false }
               : c
           ));
-          // Update parent state so CombinedStatus gets the AI image
           onUpdateHighlight?.(captureId, { aiImageUrl: aiImage, aiImageLoading: false });
         } else {
-          // Mark loading as complete even if generation failed
+          // Mark as failed
+          console.error(`Failed to generate AI image for ${captureId} after retries`);
           setHighlightCaptures(prev => prev.map(c =>
             c.id === captureId
-              ? { ...c, aiImageLoading: false }
+              ? { ...c, aiImageLoading: false, aiGenerationError: 'Generation failed' }
               : c
           ));
           onUpdateHighlight?.(captureId, { aiImageLoading: false });
         }
       }).catch((err) => {
-        // Mark loading as complete on error
         console.error(`Error generating AI image for ${captureId}:`, err);
         setHighlightCaptures(prev => prev.map(c =>
           c.id === captureId
-            ? { ...c, aiImageLoading: false }
+            ? { ...c, aiImageLoading: false, aiGenerationError: String(err) }
             : c
         ));
         onUpdateHighlight?.(captureId, { aiImageLoading: false });
       });
     } finally {
       setTimeout(() => setIsCapturing(false), 2000); // Cooldown
+    }
+  };
+
+  // Generate video manually from highlight images
+  const handleGenerateVideo = async () => {
+    if (highlightCaptures.length < 4) {
+      setVideoGenerationError('Need at least 4 highlights to generate video');
+      setTimeout(() => setVideoGenerationError(null), 3000);
+      return;
+    }
+
+    setIsGeneratingVideo(true);
+    setVideoGenerationError(null);
+
+    try {
+      // Get up to 4 reference images (prefer AI-enhanced)
+      const referenceImages = highlightCaptures
+        .slice(0, 4)
+        .map(h => h.aiImageUrl || h.imageUrl)
+        .filter(Boolean) as string[];
+
+      if (referenceImages.length < 4) {
+        throw new Error('Not enough valid images');
+      }
+
+      console.log(`Generating video with ${referenceImages.length} reference images...`);
+
+      // Call video generation API with game context
+      const videoUrl = await generateHalftimeVideo(referenceImages, {
+        homeTeam: gameState.homeTeam,
+        awayTeam: gameState.awayTeam,
+        quarter: gameState.quarter,
+        homeScore: gameState.score.home,
+        awayScore: gameState.score.away,
+      });
+
+      if (videoUrl) {
+        console.log('Video generated successfully!', videoUrl);
+
+        // Update the first 4 highlights with video URL
+        setHighlightCaptures(prev => prev.map((h, idx) =>
+          idx < 4 ? { ...h, videoUrl, videoGenerating: false } : h
+        ));
+
+        // Update parent component
+        highlightCaptures.slice(0, 4).forEach(h => {
+          onUpdateHighlight?.(h.id, { videoUrl });
+        });
+      } else {
+        throw new Error('Video generation returned no URL');
+      }
+    } catch (error) {
+      console.error('Error generating video:', error);
+      setVideoGenerationError(error instanceof Error ? error.message : 'Failed to generate video');
+    } finally {
+      setIsGeneratingVideo(false);
     }
   };
 
@@ -921,7 +1024,12 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
               autoPlay
               muted
               playsInline
-              className="hidden"
+              onLoadedMetadata={() => console.log('Video loaded:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight)}
+              className="absolute -left-[9999px] w-[640px] h-[360px]"
+              style={{
+                visibility: 'hidden',
+                pointerEvents: 'none'
+              }}
             />
           )}
         </div>
@@ -933,70 +1041,225 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
               <Camera size={16} className="text-[#ffe566]" />
               <span className="text-[10px] font-bold text-gray-500">{highlightCaptures.length} Captures</span>
             </div>
-            {liveStream && (
+            <div className="flex items-center gap-2">
+              {/* Generate Video Button */}
               <button
-                onClick={() => {
-                  if (liveAnalysis.length > 0) {
-                    captureHighlight(liveAnalysis[0]);
-                  }
-                }}
-                disabled={isCapturing}
+                onClick={handleGenerateVideo}
+                disabled={isGeneratingVideo || highlightCaptures.length < 4}
                 className={`px-4 py-2 rounded-full text-[10px] font-black uppercase flex items-center gap-2 transition-all ${
-                  isCapturing
+                  isGeneratingVideo || highlightCaptures.length < 4
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-[#ffe566] text-black hover:bg-[#ffe566]/90 active:scale-95'
+                    : 'bg-purple-500 text-white hover:bg-purple-600 active:scale-95'
                 }`}
+                title={highlightCaptures.length < 4 ? 'Need 4+ highlights' : 'Generate video from highlights'}
               >
-                <Camera size={12} />
-                {isCapturing ? 'Capturing...' : 'Capture Now'}
+                <Video size={12} />
+                {isGeneratingVideo ? 'Generating...' : 'Generate Video'}
               </button>
-            )}
+
+              {/* Capture Now Button */}
+              {liveStream && (
+                <button
+                  onClick={() => {
+                    if (liveAnalysis.length > 0) {
+                      captureHighlight(liveAnalysis[0]);
+                    }
+                  }}
+                  disabled={isCapturing}
+                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase flex items-center gap-2 transition-all ${
+                    isCapturing
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#ffe566] text-black hover:bg-[#ffe566]/90 active:scale-95'
+                  }`}
+                >
+                  <Camera size={12} />
+                  {isCapturing ? 'Capturing...' : 'Capture Now'}
+                </button>
+              )}
+            </div>
           </div>
 
+          {/* Error Message */}
+          {videoGenerationError && (
+            <div className="mb-3 bg-red-500/10 border border-red-500/30 px-3 py-2 rounded-lg">
+              <p className="text-red-500 text-[9px] font-bold">{videoGenerationError}</p>
+            </div>
+          )}
+
           {highlightCaptures.length > 0 ? (
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <SimpleBar style={{ height: '100%' }}>
-                <div className="grid grid-cols-2 gap-3 pr-2">
-                {highlightCaptures.map((capture) => (
-                  <div key={capture.id} className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow">
-                    <div className="relative aspect-video">
-                      <img
-                        src={capture.aiImageUrl || capture.imageUrl}
-                        alt={capture.event}
-                        className="w-full h-full object-cover"
-                      />
-                      {/* AI Image Loading Overlay */}
-                      {capture.aiImageLoading && (
-                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
-                          <Loader2 size={24} className="text-white animate-spin mb-2" />
-                          <span className="text-white text-[8px] font-bold uppercase tracking-wider">Generating AI Image...</span>
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+              {/* Initialize first highlight on load */}
+              {selectedHighlight === null && highlightCaptures.length > 0 && setSelectedHighlight(highlightCaptures[0].id)}
+
+              {/* Large Center Image Section */}
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center">
+                <SimpleBar style={{ height: '100%' }}>
+                  <div className="flex flex-col items-center justify-center p-6 min-h-full pb-8">
+                    {highlightCaptures.find(c => c.id === selectedHighlight) && (() => {
+                      const capture = highlightCaptures.find(c => c.id === selectedHighlight);
+                      if (!capture) return null;
+                      const idx = highlightCaptures.findIndex(c => c.id === selectedHighlight);
+
+                      return (
+                        <div className="flex flex-col items-center gap-4 w-full">
+                          {/* Large Center Image */}
+                          <div className="w-full max-w-xs rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10 bg-black">
+                            <div className="relative aspect-video">
+                              <img
+                                src={capture.aiImageUrl || capture.imageUrl}
+                                alt={capture.event}
+                                className="w-full h-full object-cover"
+                              />
+                              {capture.aiImageLoading && (
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                  <Loader2 size={40} className="text-white animate-spin" />
+                                </div>
+                              )}
+
+                              {/* Gradient Overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+
+                              {/* Event Badge - Top Left */}
+                              <div className="absolute top-4 left-4">
+                                <span className="bg-[#ffe566] text-black px-4 py-2 rounded-full text-[11px] font-black shadow-lg">
+                                  {capture.event.toUpperCase()}
+                                </span>
+                              </div>
+
+                              {/* Index Badge - Top Right */}
+                              <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-[10px] font-bold">
+                                {idx + 1}/{highlightCaptures.length}
+                              </div>
+
+                              {/* Bottom Info */}
+                              <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                                <div>
+                                  <p className="text-white/60 text-[8px] uppercase font-bold mb-1">Time</p>
+                                  <p className="text-white font-bold text-xs">{capture.timestamp}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-white/60 text-[8px] uppercase font-bold mb-1">Confidence</p>
+                                  <p className="text-[#ffe566] text-xl font-black">{Math.round(capture.confidence * 100)}%</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Details Card Below Image */}
+                          <div className="w-full max-w-xs bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border border-white/10 shadow-xl">
+                            <div className="p-4 space-y-3">
+                              {/* Impact Level */}
+                              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                                <p className="text-[8px] text-gray-400 uppercase tracking-wider font-bold mb-2">Impact Level</p>
+                                <div className="flex items-center gap-2">
+                                  <div className="flex gap-0.5">
+                                    {[...Array(5)].map((_, i) => (
+                                      <div
+                                        key={i}
+                                        className={`w-2.5 h-2.5 rounded-full ${i < Math.round(capture.confidence * 5) ? 'bg-[#ffe566]' : 'bg-white/20'}`}
+                                      ></div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Event Details */}
+                              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                                <p className="text-[8px] text-gray-400 uppercase tracking-wider font-bold mb-2">Details</p>
+                                <div className="text-white/80 text-[9px] leading-relaxed line-clamp-3">
+                                  <ReactMarkdown
+                                    components={{
+                                      strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                                      p: ({ children }) => <span>{children}</span>,
+                                      em: ({ children }) => <em className="italic text-white/60">{children}</em>,
+                                    }}
+                                  >
+                                    {capture.description}
+                                  </ReactMarkdown>
+                                </div>
+                              </div>
+
+                              {/* Player & Video */}
+                              <div className="grid grid-cols-2 gap-2">
+                                {capture.playerName && (
+                                  <div className="bg-white/5 rounded-lg p-2.5 border border-white/10">
+                                    <p className="text-[7px] text-gray-400 uppercase font-bold mb-1">Player</p>
+                                    <p className="text-white font-bold text-[9px] truncate">{capture.playerName}</p>
+                                  </div>
+                                )}
+
+                                {(capture.videoUrl || capture.videoGenerating) && (
+                                  <div className="bg-white/5 rounded-lg p-2.5 border border-white/10">
+                                    <p className="text-[7px] text-gray-400 uppercase font-bold mb-1">Video</p>
+                                    <div className="flex items-center gap-1">
+                                      {capture.videoUrl ? (
+                                        <>
+                                          <Video size={10} className="text-green-400" />
+                                          <span className="text-green-400 text-[8px] font-bold">Ready</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Loader2 size={10} className="text-blue-400 animate-spin" />
+                                          <span className="text-blue-400 text-[8px] font-bold">Gen</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* AI Status */}
+                              {capture.aiImageUrl && (
+                                <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-lg p-2.5 border border-cyan-500/30 flex items-center gap-2">
+                                  <Image size={10} className="text-cyan-400" />
+                                  <span className="text-cyan-400 text-[8px] font-bold">AI-Enhanced</span>
+                                </div>
+                              )}
+
+                              {capture.aiGenerationError && (
+                                <div className="bg-red-500/20 rounded-lg p-2.5 border border-red-500/30 flex items-center gap-2">
+                                  <span className="text-red-400 text-[8px] font-bold">⚠️ AI Generation Failed</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-full text-[8px] font-bold">
-                        {capture.timestamp}
-                      </div>
-                      <div className="absolute bottom-2 right-2 bg-[#ffe566] text-black px-2 py-1 rounded-full text-[8px] font-bold">
-                        {Math.round(capture.confidence * 100)}%
-                      </div>
-                    </div>
-                    <div className="p-3">
-                      <p className="text-[10px] font-black uppercase text-[#ffe566] mb-1">{capture.event}</p>
-                      <div className="text-[9px] text-gray-600 line-clamp-2">
-                        <ReactMarkdown
-                          components={{
-                            strong: ({ children }) => <strong className="font-bold text-gray-800">{children}</strong>,
-                            p: ({ children }) => <span>{children}</span>,
-                            em: ({ children }) => <em className="italic">{children}</em>,
-                          }}
-                        >
-                          {capture.description}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </div>
-                ))}
-                </div>
-              </SimpleBar>
+                </SimpleBar>
+              </div>
+
+              {/* Thumbnail Strip - Bottom */}
+              <div className="flex-shrink-0 border-t border-white/10 pt-3 mt-3">
+                <SimpleBar style={{ height: '90px' }}>
+                  <div className="flex gap-2 px-4 pb-2">
+                    {highlightCaptures.map((capture, idx) => (
+                      <button
+                        key={capture.id}
+                        onClick={() => setSelectedHighlight(capture.id)}
+                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all relative ${
+                          selectedHighlight === capture.id
+                            ? 'border-[#ffe566] shadow-lg shadow-[#ffe566]/50'
+                            : 'border-gray-300 hover:border-[#ffe566]/50'
+                        }`}
+                        title={`${idx + 1}/${highlightCaptures.length}`}
+                      >
+                        <img
+                          src={capture.aiImageUrl || capture.imageUrl}
+                          alt={capture.event}
+                          className="w-full h-full object-cover"
+                        />
+                        {capture.aiImageLoading && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <Loader2 size={12} className="text-white animate-spin" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </SimpleBar>
+              </div>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center">
