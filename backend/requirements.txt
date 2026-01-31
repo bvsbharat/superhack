@@ -1,0 +1,25 @@
+# Core dependencies
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+
+# Video processing
+opencv-python>=4.9.0
+pillow>=10.0.0
+numpy>=1.26.0
+
+# Async utilities
+aiofiles>=23.2.0
+websockets>=12.0
+
+# AI/Vision
+google-generativeai>=0.3.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+
+# Optional: vision-agents for WebRTC streaming (install separately)
+# pip install vision-agents[gemini,getstream]
