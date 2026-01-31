@@ -438,10 +438,16 @@ export const MatchOverview: React.FC<MatchOverviewProps> = ({
       // Capture and analyze the current frame
       const result = await captureAndAnalyzeFrame(videoRef.current);
 
-      if (result.success && result.analysis) {
+      if (result.success && result.analysis && result.analysis.length > 0) {
+        // Mark events as manual captures so they bypass significance filter in Statistics
+        const manualCaptureEvents = result.analysis.map(event => ({
+          ...event,
+          isManualCapture: true  // Flag to identify manual captures
+        }));
+
         // Emit captured events
-        result.analysis.forEach(event => {
-          onLiveAnalysis(event);
+        manualCaptureEvents.forEach(event => {
+          onLiveAnalysis(event as AnalysisEvent);
         });
 
         // Show success indicator
@@ -455,9 +461,10 @@ export const MatchOverview: React.FC<MatchOverviewProps> = ({
           setCaptureSuccess(false);
         }, 2000);
 
-        console.log(`Captured and analyzed frame at ${result.timestamp}`);
+        console.log(`Captured and analyzed frame at ${result.timestamp} with ${result.analysis.length} events`);
       } else {
-        console.error('Frame capture failed:', result.error);
+        console.error('Frame capture failed or no events detected:', result.error);
+        setCaptureSuccess(false);
       }
     } catch (error) {
       console.error('Error during frame capture:', error);

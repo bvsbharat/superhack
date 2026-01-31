@@ -43,6 +43,7 @@ export interface AnalysisEvent {
     isTurnover?: boolean;
     isScoring?: boolean;
     epaValue?: number;
+    isManualCapture?: boolean;  // True if from manual frame capture
     detectedTeams?: {
         home?: string;
         away?: string;

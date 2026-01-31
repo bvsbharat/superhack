@@ -157,8 +157,8 @@ export const Statistics: React.FC<StatisticsProps> = ({
     // Create unique key for this event to prevent duplicates
     const eventKey = `${latestEvent.timestamp}-${latestEvent.event}-${latestEvent.details.substring(0, 50)}`;
 
-    // Skip if already captured this event
-    if (capturedEventsRef.current.has(eventKey)) {
+    // Skip if already captured this event (unless it's a manual capture)
+    if (!latestEvent.isManualCapture && capturedEventsRef.current.has(eventKey)) {
       return;
     }
 
@@ -183,7 +183,10 @@ export const Statistics: React.FC<StatisticsProps> = ({
     // Only capture scoring plays or truly significant events
     const isScoring = latestEvent.isScoring || detailsLower.includes('touchdown') || detailsLower.includes('field goal');
 
-    if ((isSignificant || isScoring) && !isCapturing) {
+    // Manual captures bypass the significance filter - capture all events
+    const shouldCapture = latestEvent.isManualCapture || (isSignificant || isScoring);
+
+    if (shouldCapture && !isCapturing) {
       // Mark as captured before triggering
       capturedEventsRef.current.add(eventKey);
 
