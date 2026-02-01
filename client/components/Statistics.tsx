@@ -113,11 +113,12 @@ export const Statistics: React.FC<StatisticsProps> = ({
   const [selectedHighlight, setSelectedHighlight] = useState<string | null>(null);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoGenerationError, setVideoGenerationError] = useState<string | null>(null);
+  const [generatedVideos, setGeneratedVideos] = useState<{ url: string; timestamp: string; gameState: string }[]>([]);
 
   // Track captured event timestamps to prevent duplicates
   const capturedEventsRef = useRef<Set<string>>(new Set());
 
-  // Load highlights from cache on component mount
+  // Load highlights and videos from cache on component mount
   useEffect(() => {
     const cachedHighlights = localStorage.getItem('superbowl_highlights_cache');
     if (cachedHighlights) {
@@ -127,6 +128,17 @@ export const Statistics: React.FC<StatisticsProps> = ({
         console.log('Loaded highlights from cache:', parsed.length);
       } catch (error) {
         console.error('Failed to parse cached highlights:', error);
+      }
+    }
+
+    const cachedVideos = localStorage.getItem('superbowl_videos_cache');
+    if (cachedVideos) {
+      try {
+        const parsed = JSON.parse(cachedVideos);
+        setGeneratedVideos(parsed);
+        console.log('Loaded generated videos from cache:', parsed.length);
+      } catch (error) {
+        console.error('Failed to parse cached videos:', error);
       }
     }
   }, []);
@@ -139,12 +151,22 @@ export const Statistics: React.FC<StatisticsProps> = ({
     }
   }, [highlightCaptures]);
 
+  // Save videos to cache whenever they change
+  useEffect(() => {
+    if (generatedVideos.length > 0) {
+      localStorage.setItem('superbowl_videos_cache', JSON.stringify(generatedVideos));
+      console.log('Cached generated videos:', generatedVideos.length);
+    }
+  }, [generatedVideos]);
+
   // Function to clear cache and restart match
   const clearHighlightsCache = () => {
     localStorage.removeItem('superbowl_highlights_cache');
+    localStorage.removeItem('superbowl_videos_cache');
     setHighlightCaptures([]);
+    setGeneratedVideos([]);
     setSelectedHighlight(null);
-    console.log('Cleared highlights cache - match restarted');
+    console.log('Cleared highlights and videos cache - match restarted');
   };
 
   // Extract latest game info from live analysis (from video frames)
@@ -624,8 +646,8 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
 
   // Generate video manually from highlight images
   const handleGenerateVideo = async () => {
-    if (highlightCaptures.length < 4) {
-      setVideoGenerationError('Need at least 4 highlights to generate video');
+    if (highlightCaptures.length < 2) {
+      setVideoGenerationError('Need at least 2 highlights to generate video');
       setTimeout(() => setVideoGenerationError(null), 3000);
       return;
     }
@@ -634,14 +656,14 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
     setVideoGenerationError(null);
 
     try {
-      // Get up to 4 reference images (prefer AI-enhanced)
+      // Get reference images (prefer AI-enhanced), use all available or up to 4
       const referenceImages = highlightCaptures
         .slice(0, 4)
         .map(h => h.aiImageUrl || h.imageUrl)
         .filter(Boolean) as string[];
 
-      if (referenceImages.length < 4) {
-        throw new Error('Not enough valid images');
+      if (referenceImages.length < 2) {
+        throw new Error('Need at least 2 valid images to generate video');
       }
 
       console.log(`Generating video with ${referenceImages.length} reference images...`);
@@ -662,6 +684,14 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
         setHighlightCaptures(prev => prev.map((h, idx) =>
           idx < 4 ? { ...h, videoUrl, videoGenerating: false } : h
         ));
+
+        // Add to generated videos cache
+        const newVideo = {
+          url: videoUrl,
+          timestamp: new Date().toLocaleTimeString(),
+          gameState: `${gameState.homeTeam} ${gameState.score.home} - ${gameState.awayTeam} ${gameState.score.away} (Q${gameState.quarter})`
+        };
+        setGeneratedVideos(prev => [newVideo, ...prev]);
 
         // Update parent component
         highlightCaptures.slice(0, 4).forEach(h => {
@@ -1072,6 +1102,37 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
               <div className="flex-1 min-h-0 overflow-hidden bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl flex flex-col">
                 <SimpleBar style={{ height: '100%' }}>
                   <div className="p-6 flex flex-col gap-6">
+                    {/* Generated Videos Section */}
+                    {generatedVideos.length > 0 && (
+                      <div className="w-full">
+                        <p className="text-xs text-gray-600 uppercase tracking-wider font-bold mb-3">Generated Videos ({generatedVideos.length})</p>
+                        <div className="flex flex-col gap-3">
+                          {generatedVideos.map((video, idx) => (
+                            <div key={idx} className="rounded-2xl overflow-hidden shadow-lg border-2 border-purple-500/40 bg-black">
+                              <div className="relative aspect-video group">
+                                <video
+                                  src={video.url}
+                                  className="w-full h-full object-cover"
+                                  controls
+                                  controlsList="nodownload"
+                                />
+                                {/* Video Badge */}
+                                <div className="absolute top-3 left-3 bg-purple-500/90 text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg flex items-center gap-1">
+                                  <Video size={10} />
+                                  GENERATED
+                                </div>
+                                {/* Game State */}
+                                <div className="absolute bottom-3 left-3 right-3">
+                                  <p className="text-white/80 text-[9px] uppercase font-bold">{video.gameState}</p>
+                                  <p className="text-white/60 text-[8px]">{video.timestamp}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Selected Highlight Display */}
                     {selectedHighlight === null && highlightCaptures.length > 0 && setSelectedHighlight(highlightCaptures[0].id)}
 
@@ -1132,13 +1193,31 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <p className="text-xs text-gray-600 uppercase tracking-wider font-bold">All Captures ({highlightCaptures.length})</p>
-                        <button
-                          onClick={clearHighlightsCache}
-                          className="text-[8px] text-red-500 hover:text-red-600 font-bold uppercase px-2 py-1 rounded border border-red-500/30 hover:border-red-500/60 transition-all"
-                          title="Clear cache and restart match"
-                        >
-                          Clear Cache
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {/* Generate Video Button */}
+                          <button
+                            onClick={handleGenerateVideo}
+                            disabled={isGeneratingVideo || highlightCaptures.length < 2}
+                            className={`text-[8px] font-bold uppercase px-3 py-1.5 rounded border transition-all flex items-center gap-1.5 ${
+                              isGeneratingVideo || highlightCaptures.length < 2
+                                ? 'bg-gray-200/20 text-gray-400 border-gray-400/20 cursor-not-allowed'
+                                : 'bg-purple-500/20 text-purple-400 border-purple-500/50 hover:bg-purple-500/30 hover:border-purple-500/70 active:scale-95'
+                            }`}
+                            title={highlightCaptures.length < 2 ? `Need 2+ highlights (${highlightCaptures.length}/2)` : 'Generate halftime video'}
+                          >
+                            <Video size={10} />
+                            {isGeneratingVideo ? 'Generating...' : 'Generate Video'}
+                          </button>
+
+                          {/* Clear Cache Button */}
+                          <button
+                            onClick={clearHighlightsCache}
+                            className="text-[8px] text-red-500 hover:text-red-600 font-bold uppercase px-2 py-1 rounded border border-red-500/30 hover:border-red-500/60 transition-all"
+                            title="Clear cache and restart match"
+                          >
+                            Clear Cache
+                          </button>
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3 pr-2">
                         {highlightCaptures.map((capture, idx) => (
