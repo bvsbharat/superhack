@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, Brain, Bot, User, Loader2, RefreshCw, Activity, TrendingUp, Clock } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { GameState } from '../types';
 import { chatWithAnalyst, ChatMessage } from '../services/geminiChat';
 
@@ -65,13 +66,30 @@ export const DeepResearch: React.FC<DeepResearchProps> = ({ gameState }) => {
             )}
             
             <div className={`max-w-[70%] p-4 rounded-2xl ${
-              msg.role === 'user' 
-                ? 'bg-[#ffe566] text-black rounded-tr-none' 
+              msg.role === 'user'
+                ? 'bg-[#ffe566] text-black rounded-tr-none'
                 : 'bg-[#1a1a1a] border border-white/10 text-white rounded-tl-none'
             }`}>
-              <p className="text-sm leading-relaxed font-medium">
-                {msg.content}
-              </p>
+              <div className="text-sm leading-relaxed font-medium prose prose-invert max-w-none">
+                {msg.role === 'user' ? (
+                  <p>{msg.content}</p>
+                ) : (
+                  <ReactMarkdown
+                    components={{
+                      p: ({node, ...props}) => <p className="mb-2" {...props} />,
+                      strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
+                      em: ({node, ...props}) => <em className="italic" {...props} />,
+                      ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2" {...props} />,
+                      ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2" {...props} />,
+                      li: ({node, ...props}) => <li className="ml-2" {...props} />,
+                      code: ({node, ...props}) => <code className="bg-white/10 px-2 py-1 rounded text-[11px]" {...props} />,
+                      pre: ({node, ...props}) => <pre className="bg-white/5 p-2 rounded mb-2 overflow-x-auto" {...props} />,
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                )}
+              </div>
               <span className={`text-[10px] mt-2 block opacity-50 font-bold uppercase tracking-wider ${msg.role === 'user' ? 'text-black' : 'text-white'}`}>
                 {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
