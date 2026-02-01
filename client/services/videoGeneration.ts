@@ -1,7 +1,4 @@
 const API_BASE = "http://localhost:8000";
-const FAL_API_KEY = process.env.FAL_KEY;
-// Updated endpoint to use correct FAL queue API structure
-const FAL_API_ENDPOINT = "https://api.fal.ai/queue/fal-ai/veo3.1/reference-to-video";
 
 export interface VideoGenerationRequest {
   prompt: string;
@@ -100,7 +97,7 @@ export async function generateVideo(
 }
 
 /**
- * Generate a Super Bowl halftime highlight video using fal-ai Veo 3.1
+ * Generate a Super Bowl halftime highlight video via backend proxy
  * @param referenceImageUrls - List of highlight image URLs (4+ recommended)
  * @param gameContext - Current game state (teams, scores, quarter)
  * @returns Generated video URL or null on error
@@ -121,91 +118,41 @@ export async function generateHalftimeVideo(
       return null;
     }
 
-    if (!FAL_API_KEY) {
-      console.error("FAL_KEY environment variable not set");
-      return null;
-    }
-
-    // Create detailed prompt for the video generation
-    const prompt = `Create an exciting Super Bowl LIX halftime highlight reel video.
-
-Game Context: ${gameContext.homeTeam} vs ${gameContext.awayTeam}, Quarter ${gameContext.quarter || 2}, Score: ${gameContext.homeTeam} ${gameContext.homeScore || 0} - ${gameContext.awayTeam} ${gameContext.awayScore || 0}
-
-Action: Smoothly transition between key highlight moments from the game, showing epic plays, big catches, and intense moments
-Style: Professional NFL broadcast highlights with dynamic camera movements and smooth transitions
-Camera motion: Zoom in on key players, pan across field action, follow the ball movement
-Ambiance: High-energy stadium atmosphere, dramatic lighting, professional sports broadcast feel
-Duration: 8 seconds
-Output: 720p video quality with natural motion and realistic animations`;
-
-    console.log("Requesting halftime video generation from fal-ai...", {
+    console.log("Requesting halftime video generation from backend proxy...", {
       imageCount: referenceImageUrls.length,
       homeTeam: gameContext.homeTeam,
       awayTeam: gameContext.awayTeam,
     });
 
-    const falRequest = {
-      input: {
-        prompt,
-        image_urls: referenceImageUrls,
-        duration: "8s",
-        resolution: "720p",
-        aspect_ratio: "16:9",
-        generate_audio: true,
-      }
-    };
-
-    const submitResponse = await fetch(`${FAL_API_ENDPOINT}/submit`, {
+    // Route through backend to avoid CORS issues and keep FAL_KEY secure
+    const response = await fetch(`${API_BASE}/generate_halftime_video`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Key ${FAL_API_KEY}`,
       },
-      body: JSON.stringify(falRequest),
+      body: JSON.stringify({
+        reference_image_urls: referenceImageUrls,
+        home_team: gameContext.homeTeam,
+        away_team: gameContext.awayTeam,
+        quarter: gameContext.quarter || 2,
+        home_score: gameContext.homeScore || 0,
+        away_score: gameContext.awayScore || 0,
+      }),
     });
 
-    if (!submitResponse.ok) {
-      const error = await submitResponse.text();
-      console.error("fal-ai halftime video generation failed:", error);
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("Backend halftime video generation failed:", error);
       return null;
     }
 
-    const submitData = await submitResponse.json();
+    const data = await response.json();
 
-    // fal-ai returns a request_id, we need to poll for the result
-    if (submitData.request_id) {
-      console.log("Video generation submitted with request_id:", submitData.request_id);
-
-      // Poll for result (max 60 attempts, 2 second intervals = up to 2 minutes)
-      for (let i = 0; i < 60; i++) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        const statusResponse = await fetch(
-          `${FAL_API_ENDPOINT}/status/${submitData.request_id}`,
-          {
-            headers: {
-              "Authorization": `Key ${FAL_API_KEY}`,
-            },
-          }
-        );
-
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-
-          if (statusData.status === "COMPLETED" && statusData.output?.video?.url) {
-            console.log("Halftime video generated successfully:", statusData.output.video.url);
-            return statusData.output.video.url;
-          } else if (statusData.status === "FAILED") {
-            console.error("Video generation failed:", statusData.error);
-            return null;
-          }
-        }
-      }
-
-      console.error("Video generation timeout after polling");
-      return null;
+    if (data.status === "success" && data.video_url) {
+      console.log("Halftime video generated successfully:", data.video_url);
+      return data.video_url;
     } else {
-      console.error("No request_id returned from fal-ai");
+      console.error("Video generation returned no URL:", data.message);
       return null;
     }
   } catch (error) {
