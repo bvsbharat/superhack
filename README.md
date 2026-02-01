@@ -1,4 +1,4 @@
-# SuperBowl: Real-Time Sports Analytics & Strategy Platform
+# Super Anyaltics : Real-Time Sports Analytics & Strategy Platform
 
 > **The Playbook** - A computational sports system that sits on the sideline, providing real-time analytics and strategic insights for teams, coaches, players, and analysts during live matches.
 
