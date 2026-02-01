@@ -35,6 +35,7 @@ export interface HighlightCapture {
   imageUrl: string;
   aiImageUrl?: string;
   aiImageLoading?: boolean;
+  aiGenerationError?: string;
   description: string;
   event: string;
   confidence: number;

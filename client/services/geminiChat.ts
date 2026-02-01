@@ -46,7 +46,7 @@ export const chatWithAnalyst = async (
     
     // Using a chat structure if supported, otherwise appending.
     // The previous code used 'gemini-3-flash-preview', let's stick to a robust text model.
-    // 'gemini-3-flash-preview-exp' or similar might be available, but let's use 'gemini-1.5-flash' or 'gemini-1.5-pro' if standard.
+    // 'gemini-3-flash-preview-exp' or similar might be available, but let's use 'gemini-1.5-flash' or 'gemini-3-pro-preview' if standard.
     // Given the previous file used 'gemini-3-flash-preview', I'll stick to that or 'gemini-3-flash-preview'.
     
     const contents = [
@@ -59,7 +59,7 @@ export const chatWithAnalyst = async (
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-pro",
+      model: "gemini-3-pro-preview",
       contents: contents,
       config: {
         temperature: 0.7,

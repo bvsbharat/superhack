@@ -117,6 +117,36 @@ export const Statistics: React.FC<StatisticsProps> = ({
   // Track captured event timestamps to prevent duplicates
   const capturedEventsRef = useRef<Set<string>>(new Set());
 
+  // Load highlights from cache on component mount
+  useEffect(() => {
+    const cachedHighlights = localStorage.getItem('superbowl_highlights_cache');
+    if (cachedHighlights) {
+      try {
+        const parsed = JSON.parse(cachedHighlights);
+        setHighlightCaptures(parsed);
+        console.log('Loaded highlights from cache:', parsed.length);
+      } catch (error) {
+        console.error('Failed to parse cached highlights:', error);
+      }
+    }
+  }, []);
+
+  // Save highlights to cache whenever they change
+  useEffect(() => {
+    if (highlightCaptures.length > 0) {
+      localStorage.setItem('superbowl_highlights_cache', JSON.stringify(highlightCaptures));
+      console.log('Cached highlights:', highlightCaptures.length);
+    }
+  }, [highlightCaptures]);
+
+  // Function to clear cache and restart match
+  const clearHighlightsCache = () => {
+    localStorage.removeItem('superbowl_highlights_cache');
+    setHighlightCaptures([]);
+    setSelectedHighlight(null);
+    console.log('Cleared highlights cache - match restarted');
+  };
+
   // Extract latest game info from live analysis (from video frames)
   const latestGameInfo = useMemo(() => {
     // Find the most recent event with game info
@@ -1036,74 +1066,24 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
       ) : activeView === 'highlights' && isLiveMode ? (
         /* Highlights View - AI Captured Key Moments */
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Camera size={16} className="text-[#ffe566]" />
-              <span className="text-[10px] font-bold text-gray-500">{highlightCaptures.length} Captures</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Generate Video Button */}
-              <button
-                onClick={handleGenerateVideo}
-                disabled={isGeneratingVideo || highlightCaptures.length < 4}
-                className={`px-4 py-2 rounded-full text-[10px] font-black uppercase flex items-center gap-2 transition-all ${
-                  isGeneratingVideo || highlightCaptures.length < 4
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-purple-500 text-white hover:bg-purple-600 active:scale-95'
-                }`}
-                title={highlightCaptures.length < 4 ? 'Need 4+ highlights' : 'Generate video from highlights'}
-              >
-                <Video size={12} />
-                {isGeneratingVideo ? 'Generating...' : 'Generate Video'}
-              </button>
-
-              {/* Capture Now Button */}
-              {liveStream && (
-                <button
-                  onClick={() => {
-                    if (liveAnalysis.length > 0) {
-                      captureHighlight(liveAnalysis[0]);
-                    }
-                  }}
-                  disabled={isCapturing}
-                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase flex items-center gap-2 transition-all ${
-                    isCapturing
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#ffe566] text-black hover:bg-[#ffe566]/90 active:scale-95'
-                  }`}
-                >
-                  <Camera size={12} />
-                  {isCapturing ? 'Capturing...' : 'Capture Now'}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {videoGenerationError && (
-            <div className="mb-3 bg-red-500/10 border border-red-500/30 px-3 py-2 rounded-lg">
-              <p className="text-red-500 text-[9px] font-bold">{videoGenerationError}</p>
-            </div>
-          )}
-
           {highlightCaptures.length > 0 ? (
-            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-              {/* Initialize first highlight on load */}
-              {selectedHighlight === null && highlightCaptures.length > 0 && setSelectedHighlight(highlightCaptures[0].id)}
-
-              {/* Large Center Image Section */}
-              <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-4">
+              {/* Card Container */}
+              <div className="flex-1 min-h-0 overflow-hidden bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl flex flex-col">
                 <SimpleBar style={{ height: '100%' }}>
-                  <div className="flex flex-col items-center justify-center p-6 min-h-full pb-8">
+                  <div className="p-6 flex flex-col gap-6">
+                    {/* Selected Highlight Display */}
+                    {selectedHighlight === null && highlightCaptures.length > 0 && setSelectedHighlight(highlightCaptures[0].id)}
+
                     {highlightCaptures.find(c => c.id === selectedHighlight) && (() => {
                       const capture = highlightCaptures.find(c => c.id === selectedHighlight);
                       if (!capture) return null;
                       const idx = highlightCaptures.findIndex(c => c.id === selectedHighlight);
 
                       return (
-                        <div className="flex flex-col items-center gap-4 w-full">
+                        <div className="flex flex-col items-center gap-4">
                           {/* Large Center Image */}
-                          <div className="w-full max-w-xs rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10 bg-black">
+                          <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-xl border-2 border-white/20 bg-black">
                             <div className="relative aspect-video">
                               <img
                                 src={capture.aiImageUrl || capture.imageUrl}
@@ -1119,144 +1099,83 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
                               {/* Gradient Overlay */}
                               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
 
-                              {/* Event Badge - Top Left */}
-                              <div className="absolute top-4 left-4">
-                                <span className="bg-[#ffe566] text-black px-4 py-2 rounded-full text-[11px] font-black shadow-lg">
+                              {/* Event Badge */}
+                              <div className="absolute top-3 left-3">
+                                <span className="bg-[#ffe566] text-black px-3 py-1 rounded-full text-[10px] font-black shadow-lg">
                                   {capture.event.toUpperCase()}
                                 </span>
                               </div>
 
-                              {/* Index Badge - Top Right */}
-                              <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-[10px] font-bold">
+                              {/* Index Badge */}
+                              <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm text-white px-2 py-1 rounded-full text-[9px] font-bold">
                                 {idx + 1}/{highlightCaptures.length}
                               </div>
 
                               {/* Bottom Info */}
-                              <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                              <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end">
                                 <div>
-                                  <p className="text-white/60 text-[8px] uppercase font-bold mb-1">Time</p>
+                                  <p className="text-white/60 text-[7px] uppercase font-bold mb-0.5">Time</p>
                                   <p className="text-white font-bold text-xs">{capture.timestamp}</p>
                                 </div>
                                 <div className="text-right">
-                                  <p className="text-white/60 text-[8px] uppercase font-bold mb-1">Confidence</p>
-                                  <p className="text-[#ffe566] text-xl font-black">{Math.round(capture.confidence * 100)}%</p>
+                                  <p className="text-white/60 text-[7px] uppercase font-bold mb-0.5">Confidence</p>
+                                  <p className="text-[#ffe566] text-lg font-black">{Math.round(capture.confidence * 100)}%</p>
                                 </div>
                               </div>
-                            </div>
-                          </div>
-
-                          {/* Details Card Below Image */}
-                          <div className="w-full max-w-xs bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border border-white/10 shadow-xl">
-                            <div className="p-4 space-y-3">
-                              {/* Impact Level */}
-                              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                                <p className="text-[8px] text-gray-400 uppercase tracking-wider font-bold mb-2">Impact Level</p>
-                                <div className="flex items-center gap-2">
-                                  <div className="flex gap-0.5">
-                                    {[...Array(5)].map((_, i) => (
-                                      <div
-                                        key={i}
-                                        className={`w-2.5 h-2.5 rounded-full ${i < Math.round(capture.confidence * 5) ? 'bg-[#ffe566]' : 'bg-white/20'}`}
-                                      ></div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Event Details */}
-                              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                                <p className="text-[8px] text-gray-400 uppercase tracking-wider font-bold mb-2">Details</p>
-                                <div className="text-white/80 text-[9px] leading-relaxed line-clamp-3">
-                                  <ReactMarkdown
-                                    components={{
-                                      strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
-                                      p: ({ children }) => <span>{children}</span>,
-                                      em: ({ children }) => <em className="italic text-white/60">{children}</em>,
-                                    }}
-                                  >
-                                    {capture.description}
-                                  </ReactMarkdown>
-                                </div>
-                              </div>
-
-                              {/* Player & Video */}
-                              <div className="grid grid-cols-2 gap-2">
-                                {capture.playerName && (
-                                  <div className="bg-white/5 rounded-lg p-2.5 border border-white/10">
-                                    <p className="text-[7px] text-gray-400 uppercase font-bold mb-1">Player</p>
-                                    <p className="text-white font-bold text-[9px] truncate">{capture.playerName}</p>
-                                  </div>
-                                )}
-
-                                {(capture.videoUrl || capture.videoGenerating) && (
-                                  <div className="bg-white/5 rounded-lg p-2.5 border border-white/10">
-                                    <p className="text-[7px] text-gray-400 uppercase font-bold mb-1">Video</p>
-                                    <div className="flex items-center gap-1">
-                                      {capture.videoUrl ? (
-                                        <>
-                                          <Video size={10} className="text-green-400" />
-                                          <span className="text-green-400 text-[8px] font-bold">Ready</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Loader2 size={10} className="text-blue-400 animate-spin" />
-                                          <span className="text-blue-400 text-[8px] font-bold">Gen</span>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* AI Status */}
-                              {capture.aiImageUrl && (
-                                <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-lg p-2.5 border border-cyan-500/30 flex items-center gap-2">
-                                  <Image size={10} className="text-cyan-400" />
-                                  <span className="text-cyan-400 text-[8px] font-bold">AI-Enhanced</span>
-                                </div>
-                              )}
-
-                              {capture.aiGenerationError && (
-                                <div className="bg-red-500/20 rounded-lg p-2.5 border border-red-500/30 flex items-center gap-2">
-                                  <span className="text-red-400 text-[8px] font-bold">⚠️ AI Generation Failed</span>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
                       );
                     })()}
-                  </div>
-                </SimpleBar>
-              </div>
 
-              {/* Thumbnail Strip - Bottom */}
-              <div className="flex-shrink-0 border-t border-white/10 pt-3 mt-3">
-                <SimpleBar style={{ height: '90px' }}>
-                  <div className="flex gap-2 px-4 pb-2">
-                    {highlightCaptures.map((capture, idx) => (
-                      <button
-                        key={capture.id}
-                        onClick={() => setSelectedHighlight(capture.id)}
-                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all relative ${
-                          selectedHighlight === capture.id
-                            ? 'border-[#ffe566] shadow-lg shadow-[#ffe566]/50'
-                            : 'border-gray-300 hover:border-[#ffe566]/50'
-                        }`}
-                        title={`${idx + 1}/${highlightCaptures.length}`}
-                      >
-                        <img
-                          src={capture.aiImageUrl || capture.imageUrl}
-                          alt={capture.event}
-                          className="w-full h-full object-cover"
-                        />
-                        {capture.aiImageLoading && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <Loader2 size={12} className="text-white animate-spin" />
-                          </div>
-                        )}
-                      </button>
-                    ))}
+                    {/* Thumbnail Grid */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs text-gray-600 uppercase tracking-wider font-bold">All Captures ({highlightCaptures.length})</p>
+                        <button
+                          onClick={clearHighlightsCache}
+                          className="text-[8px] text-red-500 hover:text-red-600 font-bold uppercase px-2 py-1 rounded border border-red-500/30 hover:border-red-500/60 transition-all"
+                          title="Clear cache and restart match"
+                        >
+                          Clear Cache
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 pr-2">
+                        {highlightCaptures.map((capture, idx) => (
+                          <button
+                            key={capture.id}
+                            onClick={() => setSelectedHighlight(capture.id)}
+                            className={`relative rounded-xl overflow-hidden border-2 transition-all aspect-video ${
+                              selectedHighlight === capture.id
+                                ? 'border-[#ffe566] shadow-lg shadow-[#ffe566]/40'
+                                : 'border-gray-200 hover:border-[#ffe566]/60'
+                            }`}
+                            title={`${idx + 1}/${highlightCaptures.length}`}
+                          >
+                            <img
+                              src={capture.aiImageUrl || capture.imageUrl}
+                              alt={capture.event}
+                              className="w-full h-full object-cover"
+                            />
+                            {capture.aiImageLoading && (
+                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                <Loader2 size={16} className="text-white animate-spin" />
+                              </div>
+                            )}
+
+                            {/* Event Badge Small */}
+                            <div className="absolute top-1.5 left-1.5 bg-[#ffe566]/90 text-black text-[8px] font-black px-2 py-0.5 rounded">
+                              {capture.event}
+                            </div>
+
+                            {/* Index Badge */}
+                            <div className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[8px] font-bold px-2 py-0.5 rounded">
+                              {idx + 1}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </SimpleBar>
               </div>

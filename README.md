@@ -8,6 +8,12 @@ SuperBowl is a comprehensive real-time sports analytics platform designed to emp
 
 **Core Principle**: Build tools *for people in the game* - coaches need strategy answers at halftime, teams need live positional analytics, and analysts need visual decision matrices to drive winning plays.
 
+## 📚 Documentation
+
+- [**Deep Analytics Guide**](./DEEP_ANALYTICS_GUIDE.md): Learn how to use the Deep Research Chat, Strategy Analysis, and more.
+- [**Motion Animation Guide**](./client/MOTION_ANIMATION_GUIDE.md): Guide for the frontend animations.
+- [**Video Generation Guide**](./EXPANDED_VIEW_VIDEO_GENERATION.md): Details on the video generation capabilities.
+
 ---
 
 ## 🚀 Key Features

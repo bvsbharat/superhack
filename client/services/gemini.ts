@@ -3,8 +3,21 @@ import { GoogleGenAI } from "@google/genai";
 
 const API_KEY = process.env.API_KEY;
 
+// Validate API key on module load
+if (typeof window !== 'undefined') { // Only in browser
+  if (!API_KEY) {
+    console.error('⚠️ GEMINI API_KEY not configured - AI image generation will fail');
+    console.error('Set API_KEY in .env.local file');
+  } else {
+    console.log('✅ Gemini API key configured');
+  }
+}
+
 export const generateSportImage = async (prompt: string): Promise<string | null> => {
-  if (!API_KEY) return null;
+  if (!API_KEY) {
+    console.error('Cannot generate image: API_KEY not configured');
+    return null;
+  }
 
   try {
     const ai = new GoogleGenAI({ apiKey: API_KEY });
@@ -42,7 +55,7 @@ export const getLiveInsights = async (query: string): Promise<AISearchResult | n
   try {
     const ai = new GoogleGenAI({ apiKey: API_KEY });
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: query,
       config: {
         tools: [{ googleSearch: {} }],

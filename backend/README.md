@@ -230,7 +230,7 @@ pip install -r requirements.txt
 
 ### Gemini API 404 Error
 
-**Error**: `models/gemini-1.5-pro is not found`
+**Error**: `models/gemini-3-pro-preview is not found`
 
 **Solution**: All models have been updated to `gemini-2-0-pro`. Make sure you:
 1. Have the latest backend code
