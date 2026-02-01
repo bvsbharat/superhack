@@ -331,19 +331,25 @@ export async function analyzeFrame(imageBase64: string): Promise<AnalysisEvent[]
     }
 }
 
+// 3-second delay between frame analysis requests to prevent rate limiting (user requirement)
+const FRAME_ANALYSIS_INTERVAL_MS = 3000;
+
 /**
  * Start continuous frame analysis from a video element.
  * Returns a stop function to end the analysis loop.
+ * Analyzes frames every 3 seconds to respect rate limits.
  */
 export function startFrameAnalysis(
     videoElement: HTMLVideoElement,
     onAnalysis: (events: AnalysisEvent[]) => void,
-    intervalMs: number = 2000 // Analyze every 2 seconds
+    intervalMs: number = FRAME_ANALYSIS_INTERVAL_MS // Analyze every 3 seconds
 ): () => void {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     let isRunning = true;
     let frameCount = 0;
+
+    console.log(`Starting frame analysis with ${intervalMs}ms interval (${(intervalMs / 1000).toFixed(1)}s delay between requests)`);
 
     const analyzeLoop = async () => {
         if (!isRunning || !ctx) return;
@@ -362,6 +368,7 @@ export function startFrameAnalysis(
             // Send to backend for analysis
             const results = await analyzeFrame(imageBase64);
 
+            // Only call callback if we have actual results (skip empty responses)
             if (results && results.length > 0) {
                 // Add frame count to timestamp for uniqueness
                 const timestampedResults = results.map(r => ({
@@ -376,7 +383,7 @@ export function startFrameAnalysis(
             console.error("Frame analysis error:", err);
         }
 
-        // Schedule next analysis
+        // Schedule next analysis with 3-second delay
         if (isRunning) {
             setTimeout(analyzeLoop, intervalMs);
         }
@@ -388,6 +395,7 @@ export function startFrameAnalysis(
     // Return stop function
     return () => {
         isRunning = false;
+        console.log("Frame analysis stopped");
     };
 }
 

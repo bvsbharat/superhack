@@ -64,15 +64,15 @@ class DeepThinkTacticsService:
         try:
             genai.configure(api_key=settings.GEMINI_API_KEY)
             # Use flash model for fast iterations
-            self.model = genai.GenerativeModel("gemini-3-flash-preview")
-            # Try to use pro model for deep think - fallback to flash if unavailable
-            self.think_model = genai.GenerativeModel("gemini-3-pro-preview")
+            self.model = genai.GenerativeModel("gemini-2.5-flash")
+            # Use pro model for deep think if available
+            self.think_model = genai.GenerativeModel("gemini-2.5-pro")
             self._initialized = True
             logger.info("Deep think tactics service initialized")
             return True
         except Exception as e:
             logger.error(f"Failed to initialize deep think service: {e}")
-            self.model = genai.GenerativeModel("gemini-3-flash-preview")
+            self.model = genai.GenerativeModel("gemini-2.5-flash")
             self._initialized = True
             return True
 

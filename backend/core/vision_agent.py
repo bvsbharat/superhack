@@ -159,9 +159,9 @@ Separate multiple events with ---"""
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=settings.GEMINI_API_KEY)
-                self._gemini_model = genai.GenerativeModel("gemini-3-pro-preview")
+                self._gemini_model = genai.GenerativeModel("gemini-2.5-flash")
                 self._initialized = True
-                logger.info("Vision Agent initialized with gemini-3-pro-preview")
+                logger.info("Vision Agent initialized with gemini-2.5-flash")
                 return True
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini API: {e}")
@@ -272,19 +272,69 @@ Separate multiple events with ---"""
         return self._generate_demo_analysis(ts_str)
 
     async def _analyze_with_gemini(self, image: Image.Image, timestamp: str) -> list[AnalysisResult]:
-        """Analyze frame using direct Gemini Vision API."""
+        """Analyze frame using direct Gemini Vision API with retry logic."""
+        return await self._analyze_with_retry(image, timestamp)
+
+    async def _analyze_with_retry(self, image: Image.Image, timestamp: str, max_retries: int = 2) -> list[AnalysisResult]:
+        """Analyze frame with retry logic for transient errors."""
         prompt = f"""Analyze this football game frame at timestamp {timestamp}.
 
 {self.SYSTEM_INSTRUCTIONS}
 
 Respond with detected events in the specified format."""
 
-        try:
-            response = self._gemini_model.generate_content([prompt, image])
-            return self._parse_analysis_response(response.text, timestamp)
-        except Exception as e:
-            logger.error(f"Gemini analysis failed: {e}")
-            return self._generate_demo_analysis(timestamp)
+        for attempt in range(max_retries + 1):
+            try:
+                logger.info(f"Starting Gemini analysis for frame at {timestamp} (attempt {attempt + 1})")
+                response = self._gemini_model.generate_content(
+                    [prompt, image],
+                    request_options={'timeout': 30}
+                )
+                logger.info(f"Gemini analysis successful at {timestamp}")
+                return self._parse_analysis_response(response.text, timestamp)
+
+            except Exception as e:
+                error_msg = str(e).lower()
+                error_type = type(e).__name__
+
+                logger.error(f"Gemini analysis failed at {timestamp} (attempt {attempt + 1}/{max_retries + 1})")
+                logger.error(f"Error type: {error_type}")
+                logger.error(f"Error message: {str(e)}")
+
+                # Check for specific error types
+                if any(x in error_msg for x in ["429", "resource exhausted", "quota"]):
+                    logger.warning(f"Rate limit hit at {timestamp}, requests too frequent")
+                    return []
+
+                elif any(x in error_msg for x in ["timeout", "deadline"]):
+                    logger.warning(f"Timeout at {timestamp}, retrying...")
+                    if attempt < max_retries:
+                        wait_time = (2 ** attempt)
+                        logger.info(f"Retrying in {wait_time}s...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        logger.error(f"All {max_retries + 1} attempts failed due to timeout")
+                        return []
+
+                elif any(x in error_msg for x in ["404", "not found"]):
+                    logger.error(f"Model not found - check model name: {e}")
+                    return self._generate_demo_analysis(timestamp)
+
+                elif any(x in error_msg for x in ["403", "permission", "api key"]):
+                    logger.error(f"API key issue: {e}")
+                    return self._generate_demo_analysis(timestamp)
+
+                else:
+                    # Retry on other transient errors
+                    if attempt < max_retries:
+                        wait_time = (2 ** attempt)
+                        logger.warning(f"Transient error, retrying in {wait_time}s: {e}")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        logger.error(f"All {max_retries + 1} attempts failed: {e}")
+                        return []
+
+        return []
 
     async def _analyze_with_vision_agents(self, image: Image.Image, timestamp: str) -> list[AnalysisResult]:
         """Analyze frame using vision-agents framework."""
