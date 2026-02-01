@@ -1,6 +1,7 @@
 const API_BASE = "http://localhost:8000";
 const FAL_API_KEY = process.env.FAL_KEY;
-const FAL_API_ENDPOINT = "https://api.fal.ai/v1/queues/fal-ai/veo3.1/reference-to-video/submit";
+// Updated endpoint to use correct FAL queue API structure
+const FAL_API_ENDPOINT = "https://api.fal.ai/queue/fal-ai/veo3.1/reference-to-video";
 
 export interface VideoGenerationRequest {
   prompt: string;
@@ -144,15 +145,17 @@ Output: 720p video quality with natural motion and realistic animations`;
     });
 
     const falRequest = {
-      prompt,
-      image_urls: referenceImageUrls,
-      duration: "8s",
-      resolution: "720p",
-      aspect_ratio: "16:9",
-      generate_audio: true,
+      input: {
+        prompt,
+        image_urls: referenceImageUrls,
+        duration: "8s",
+        resolution: "720p",
+        aspect_ratio: "16:9",
+        generate_audio: true,
+      }
     };
 
-    const response = await fetch(FAL_API_ENDPOINT, {
+    const submitResponse = await fetch(`${FAL_API_ENDPOINT}/submit`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -161,24 +164,24 @@ Output: 720p video quality with natural motion and realistic animations`;
       body: JSON.stringify(falRequest),
     });
 
-    if (!response.ok) {
-      const error = await response.text();
+    if (!submitResponse.ok) {
+      const error = await submitResponse.text();
       console.error("fal-ai halftime video generation failed:", error);
       return null;
     }
 
-    const data = await response.json();
+    const submitData = await submitResponse.json();
 
     // fal-ai returns a request_id, we need to poll for the result
-    if (data.request_id) {
-      console.log("Video generation submitted with request_id:", data.request_id);
+    if (submitData.request_id) {
+      console.log("Video generation submitted with request_id:", submitData.request_id);
 
-      // Poll for result (max 30 attempts, 2 second intervals)
-      for (let i = 0; i < 30; i++) {
+      // Poll for result (max 60 attempts, 2 second intervals = up to 2 minutes)
+      for (let i = 0; i < 60; i++) {
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         const statusResponse = await fetch(
-          `https://api.fal.ai/v1/queues/default/requests/${data.request_id}/status`,
+          `${FAL_API_ENDPOINT}/status/${submitData.request_id}`,
           {
             headers: {
               "Authorization": `Key ${FAL_API_KEY}`,
