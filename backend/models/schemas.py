@@ -86,7 +86,7 @@ class GameState(BaseModel):
     distance: int = 10
     possession: str = Field("KC", description="Team abbreviation with possession")
     homeTeam: str = Field("KC", description="Home team abbreviation")
-    awayTeam: str = Field("PHI", description="Away team abbreviation")
+    awayTeam: str = Field("SF", description="Away team abbreviation")
     lastPlay: str = "Ready for kickoff."
     winProb: float = Field(50.0, ge=0.0, le=100.0)
     offensiveEpa: float = 0.0

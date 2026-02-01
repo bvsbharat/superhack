@@ -329,4 +329,4 @@ export function getTeam(abbrev: string, fallback: string = 'KC'): NFLTeamConfig 
  * Get default teams for Super Bowl
  */
 export const DEFAULT_HOME_TEAM = 'KC';
-export const DEFAULT_AWAY_TEAM = 'PHI';
+export const DEFAULT_AWAY_TEAM = 'SF';

@@ -13,6 +13,8 @@ interface CombinedStatusProps {
   player: Player;
   isLiveMode?: boolean;
   highlights: HighlightCapture[];
+  selectedHighlight?: HighlightCapture | null;
+  selectedVideo?: { url: string; timestamp: string; gameState: string } | null;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
   gameState?: {
@@ -33,6 +35,8 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
   player,
   isLiveMode = false,
   highlights,
+  selectedHighlight,
+  selectedVideo,
   isExpanded = false,
   onToggleExpand,
   gameState,
@@ -63,11 +67,23 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
     }
   }, [highlights.length]);
 
-  const currentHighlight = highlights[currentHighlightIndex];
+  // Log when video is selected for debugging
+  useEffect(() => {
+    if (selectedVideo) {
+      console.log('Video selected in CombinedStatus:', selectedVideo);
+    }
+  }, [selectedVideo]);
+
+  // Use selected highlight if available, otherwise use current from array rotation
+  const currentHighlight = selectedHighlight || highlights[currentHighlightIndex];
+
   // Use AI-generated image if available, otherwise fall back to captured frame
   const highlightDisplayImage = currentHighlight?.aiImageUrl || currentHighlight?.imageUrl;
-  const displayImage = showHighlight && currentHighlight ? highlightDisplayImage : image;
-  const isShowingAiImage = showHighlight && currentHighlight?.aiImageUrl;
+
+  // Show highlight if we have a selected one or if showHighlight is true and we have highlights
+  const shouldShowHighlight = selectedHighlight ? true : (showHighlight && currentHighlight);
+  const displayImage = shouldShowHighlight && currentHighlight ? highlightDisplayImage : image;
+  const isShowingAiImage = shouldShowHighlight && currentHighlight?.aiImageUrl;
 
   const handleDownload = () => {
     if (!displayImage) return;
@@ -89,16 +105,37 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
             <div className="w-12 h-12 border-2 border-amber-500/10 border-t-amber-500 rounded-full animate-spin"></div>
             <p className="text-amber-500/40 text-[10px] font-black uppercase tracking-[0.5em] animate-pulse">Establishing Live Sync</p>
           </div>
+        ) : selectedVideo ? (
+          <video
+            src={selectedVideo.url}
+            className="w-full h-full object-cover"
+            controls
+            autoPlay
+          />
         ) : (
           displayImage && <img src={displayImage} alt={showHighlight && currentHighlight ? currentHighlight.event : player.name} className="w-full h-full object-cover transition-transform duration-[6000ms] group-hover:scale-105" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.4)_100%)]" />
+        {!selectedVideo && (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.4)_100%)]" />
+          </>
+        )}
       </div>
 
+      {/* Video Expanded Indicator - When video is displayed */}
+      {selectedVideo && (
+        <div className="absolute top-8 left-8 z-30">
+          <div className="bg-purple-500 text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg flex items-center gap-1.5">
+            <Film size={12} />
+            GENERATED VIDEO
+          </div>
+        </div>
+      )}
+
       {/* Halftime Video Indicator - When generating or ready */}
-      {(generatingHalftimeVideo || halftimeVideoGenerated) && (
+      {!selectedVideo && (generatingHalftimeVideo || halftimeVideoGenerated) && (
         <div className="absolute top-8 left-8 z-30">
           <div className={`${
             generatingHalftimeVideo
@@ -177,6 +214,17 @@ export const CombinedStatus: React.FC<CombinedStatusProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Video Info Display */}
+      {selectedVideo && (
+        <div className="absolute bottom-8 left-8 right-8 z-20">
+          <div className="bg-black/60 backdrop-blur-md rounded-2xl p-4 border border-purple-500/30">
+            <p className="text-white/60 text-[9px] uppercase font-bold mb-1">Generated Video</p>
+            <p className="text-white font-bold text-sm mb-2">{selectedVideo.gameState}</p>
+            <p className="text-white/50 text-[10px]">{selectedVideo.timestamp}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

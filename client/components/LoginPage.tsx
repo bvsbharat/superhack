@@ -44,11 +44,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             <h1 className="text-5xl font-black text-white mb-4 tracking-tight">Super Analytics</h1>
             <p className="text-lg text-white/70 font-semibold">Powered by</p>
           </div>
-          <img
-            src="https://logos-world.net/wp-content/uploads/2025/02/Google-Gemini-Logo.png"
-            alt="Google Gemini"
-            className="w-48 h-auto"
-          />
+          <div className="bg-white rounded-2xl p-6 shadow-2xl">
+            <img
+              src="https://logos-world.net/wp-content/uploads/2025/02/Google-Gemini-Logo.png"
+              alt="Google Gemini"
+              className="w-48 h-auto"
+            />
+          </div>
         </div>
       </div>
 

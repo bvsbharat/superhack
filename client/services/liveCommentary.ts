@@ -204,7 +204,7 @@ class LiveCommentaryService {
 
     // Use native audio model with thinking disabled for pure audio output
     this.session = await this.ai.live.connect({
-      model: 'gemini-3-flash-preview-native-audio-preview-12-2025',
+      model: 'gemini-2.5-flash',
       config: {
         responseModalities: [Modality.AUDIO],
         systemInstruction: systemInstruction,

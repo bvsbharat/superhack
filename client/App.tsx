@@ -66,6 +66,8 @@ const App: React.FC = () => {
   const [liveAnalysis, setLiveAnalysis] = useState<AnalysisEvent[]>([]);
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
   const [highlights, setHighlights] = useState<HighlightCapture[]>([]);
+  const [selectedHighlight, setSelectedHighlight] = useState<HighlightCapture | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<{ url: string; timestamp: string; gameState: string } | null>(null);
   const [isGeneratingVideoExpanded, setIsGeneratingVideoExpanded] = useState(false);
 
   // Team Selection & Analytics Configuration
@@ -586,6 +588,85 @@ const App: React.FC = () => {
     return () => clearInterval(timer);
   }, [isSimulating, playCycle, losY]);
 
+  // Update dynamic positions based on live analysis events (live geometry)
+  useEffect(() => {
+    if (liveAnalysis.length === 0 || isSimulating) return;
+
+    // Update player positions based on latest live analysis
+    const latestEvent = liveAnalysis[0];
+    const detailsLower = latestEvent.details.toLowerCase();
+
+    setDynamicPositions(prev => {
+      const next: Record<string, {x: number, y: number}> = { ...prev };
+
+      // Extract player movement patterns from event details
+      const isOffensivePlay = latestEvent.team === gameState.homeTeam || detailsLower.includes('chiefs') || detailsLower.includes('offensive');
+
+      // Get base line of scrimmage Y position
+      const baseY = losY || 0;
+
+      // Determine play direction and intensity
+      let playIntensity = latestEvent.confidence; // 0-1 scale
+
+      if (detailsLower.includes('touchdown') || detailsLower.includes('score')) {
+        // All players moving downfield aggressively
+        const kcIds = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11'];
+        const sfIds = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9', 'd10', 'd11'];
+
+        kcIds.forEach(id => {
+          const randomSpread = (Math.random() - 0.5) * 20;
+          next[id] = { x: randomSpread, y: baseY - (20 * playIntensity) };
+        });
+        sfIds.forEach(id => {
+          next[id] = { x: (Math.random() - 0.5) * 15, y: baseY - (15 * playIntensity) };
+        });
+      } else if (detailsLower.includes('interception') || detailsLower.includes('turnover') || detailsLower.includes('fumble')) {
+        // Chaos/scramble - players spread out
+        const allIds = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11',
+                        'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9', 'd10', 'd11'];
+        allIds.forEach(id => {
+          const angle = (Math.random() * Math.PI * 2);
+          const dist = (Math.random() * 15) + 5;
+          next[id] = {
+            x: Math.cos(angle) * dist,
+            y: baseY + (Math.sin(angle) * dist * 0.5)
+          };
+        });
+      } else if (detailsLower.includes('sack') || detailsLower.includes('pressure')) {
+        // Defensive players moving forward aggressively
+        const sfIds = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9', 'd10', 'd11'];
+        sfIds.forEach(id => {
+          next[id] = { x: (Math.random() - 0.5) * 10, y: baseY + (8 * playIntensity) };
+        });
+        // QB under pressure
+        next['p1'] = { x: (Math.random() - 0.5) * 8, y: baseY + (5 * playIntensity) };
+      } else if (detailsLower.includes('pass') || detailsLower.includes('reception') || detailsLower.includes('catch')) {
+        // Receivers running routes, QB dropping back
+        next['p1'] = { x: (Math.random() - 0.5) * 4, y: baseY + (3 * playIntensity) };
+        const receivers = ['p7', 'p8', 'p9', 'p10'];
+        receivers.forEach(id => {
+          const routeDepth = (Math.random() * 20) + 10;
+          const routeWidth = (Math.random() - 0.5) * 20;
+          next[id] = { x: routeWidth, y: baseY - routeDepth };
+        });
+      } else if (detailsLower.includes('run') || detailsLower.includes('rush') || detailsLower.includes('gain')) {
+        // Running back with blocking
+        next['p10'] = { x: (Math.random() - 0.5) * 12, y: baseY - (8 * playIntensity) };
+        // O-line moving forward
+        ['p2', 'p3', 'p4', 'p5', 'p6'].forEach(id => {
+          next[id] = { x: (Math.random() - 0.5) * 6, y: baseY - (3 * playIntensity) };
+        });
+      } else if (detailsLower.includes('incomplete') || detailsLower.includes('no gain')) {
+        // Players settling back near line
+        Object.keys(next).forEach(id => {
+          next[id] = { x: (Math.random() - 0.5) * 4, y: baseY + 1 };
+        });
+      }
+
+      return next;
+    });
+  }, [liveAnalysis, losY, gameState, isSimulating]);
+
   // Replay simulation from snapshots
   useEffect(() => {
     if (!isReplayingSimulation || replaySnapshots.length === 0) return;
@@ -695,6 +776,8 @@ const App: React.FC = () => {
               player={selectedPlayer}
               isLiveMode={isLiveMode}
               highlights={highlights}
+              selectedHighlight={selectedHighlight}
+              selectedVideo={selectedVideo}
               isExpanded={isMediaExpanded}
               onToggleExpand={() => setIsMediaExpanded(!isMediaExpanded)}
               gameState={{
@@ -726,6 +809,15 @@ const App: React.FC = () => {
             onViewChange={setRightPanelTab}
             isExpanded={isLiveExpanded}
             onToggleExpand={() => setIsLiveExpanded(!isLiveExpanded)}
+            onHighlightSelected={(highlight) => {
+              setHeroImage(highlight.aiImageUrl || highlight.imageUrl);
+              setSelectedHighlight(highlight);
+              setSelectedVideo(null);
+            }}
+            onVideoSelected={(video) => {
+              setSelectedVideo(video);
+              setSelectedHighlight(null);
+            }}
           />
         </div>
       </main>

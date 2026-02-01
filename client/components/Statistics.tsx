@@ -35,6 +35,8 @@ interface StatisticsProps {
   onViewChange: (view: ViewTab) => void;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  onHighlightSelected?: (highlight: HighlightCapture) => void;
+  onVideoSelected?: (video: { url: string; timestamp: string; gameState: string }) => void;
 }
 
 // Comprehensive football analytics metrics
@@ -91,21 +93,23 @@ interface FootballMetrics {
   confidenceTrend: { val: number }[];
 }
 
-export const Statistics: React.FC<StatisticsProps> = ({ 
-  improveImage, 
-  loading, 
-  gameState, 
-  isLiveMode = false, 
-  liveAnalysis = [], 
-  liveStream, 
-  onCaptureHighlight, 
+export const Statistics: React.FC<StatisticsProps> = ({
+  improveImage,
+  loading,
+  gameState,
+  isLiveMode = false,
+  liveAnalysis = [],
+  liveStream,
+  onCaptureHighlight,
   onUpdateHighlight,
   flashAnalytics,
   deepAnalytics,
   activeView,
   onViewChange,
   isExpanded,
-  onToggleExpand
+  onToggleExpand,
+  onHighlightSelected,
+  onVideoSelected
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [highlightCaptures, setHighlightCaptures] = useState<HighlightCapture[]>([]);
@@ -183,7 +187,7 @@ export const Statistics: React.FC<StatisticsProps> = ({
   // Merge live game info with gameState (prefer live data from video)
   const liveScore = useMemo(() => ({
     homeTeam: latestGameInfo?.homeTeam || gameState.homeTeam || 'KC',
-    awayTeam: latestGameInfo?.awayTeam || gameState.awayTeam || 'PHI',
+    awayTeam: latestGameInfo?.awayTeam || gameState.awayTeam || 'SF',
     homeScore: latestGameInfo?.homeScore ?? gameState.score.home,
     awayScore: latestGameInfo?.awayScore ?? gameState.score.away,
     quarter: latestGameInfo?.quarter ?? gameState.quarter,
@@ -196,7 +200,7 @@ export const Statistics: React.FC<StatisticsProps> = ({
 
   // Get team configs based on live data (dynamic team detection)
   const homeTeam = getTeam(liveScore.homeTeam, 'KC');
-  const awayTeam = getTeam(liveScore.awayTeam, 'PHI');
+  const awayTeam = getTeam(liveScore.awayTeam, 'SF');
 
   // Attach live stream to video element
   useEffect(() => {
@@ -1121,6 +1125,17 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
                                   <Video size={10} />
                                   GENERATED
                                 </div>
+                                {/* Expand Button */}
+                                <button
+                                  onClick={() => {
+                                    console.log('Video expand button clicked:', video);
+                                    onVideoSelected?.(video);
+                                  }}
+                                  className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm text-white p-2 rounded-full hover:bg-white/40 transition-all shadow-lg opacity-0 group-hover:opacity-100"
+                                  title="Expand to center area"
+                                >
+                                  <Maximize2 size={14} />
+                                </button>
                                 {/* Game State */}
                                 <div className="absolute bottom-3 left-3 right-3">
                                   <p className="text-white/80 text-[9px] uppercase font-bold">{video.gameState}</p>
@@ -1223,7 +1238,10 @@ MOOD: High-intensity championship game moment, electric atmosphere`;
                         {highlightCaptures.map((capture, idx) => (
                           <button
                             key={capture.id}
-                            onClick={() => setSelectedHighlight(capture.id)}
+                            onClick={() => {
+                              setSelectedHighlight(capture.id);
+                              onHighlightSelected?.(capture);
+                            }}
                             className={`relative rounded-xl overflow-hidden border-2 transition-all aspect-video ${
                               selectedHighlight === capture.id
                                 ? 'border-[#ffe566] shadow-lg shadow-[#ffe566]/40'
