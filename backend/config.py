@@ -12,7 +12,8 @@ class Settings:
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     STREAM_API_KEY: str = os.getenv("STREAM_API_KEY", "")
     STREAM_API_SECRET: str = os.getenv("STREAM_API_SECRET", "")
-    VEO_API_KEY: str = os.getenv("VEO_API_KEY", "")
+    # FAL (fal-ai) is used for Veo video generation
+    VEO_API_KEY: str = os.getenv("VEO_API_KEY", "") or os.getenv("FAL_KEY", "")
 
     # Server config
     HOST: str = os.getenv("HOST", "0.0.0.0")
